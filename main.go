@@ -2,13 +2,14 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"github.com/idata-shopee/gopcp"
 	"github.com/idata-shopee/gopcp_rpc"
 	"github.com/idata-shopee/gopcp_service"
 	"github.com/idata-shopee/gopcp_stream"
-	"github.com/idata-shopee/gopool"
 	"github.com/satori/go.uuid"
 	"math/rand"
+	"net"
 	"os"
 	"strconv"
 	"sync"
@@ -23,9 +24,11 @@ type Worker struct {
 	ServiceType          string
 }
 
-type DmpClientConfig struct {
+type MCClientConfig struct {
 	Host          string
 	Port          int
+	NALocalIP     string
+	NAPort        int
 	PoolSize      int
 	Duration      time.Duration
 	RetryDuration time.Duration
@@ -36,60 +39,84 @@ type WorkerConfig struct {
 }
 
 type WorkerReport struct {
-	ReportType  string
-	Id          string
-	ServiceType string
+	Id string `json:"id"`
 }
 
-type DmpClient struct {
-	dmpClientPool *gopool.Pool
-	workerReports []WorkerReport
-	workerMux     *sync.Mutex
+type MCClient struct {
+	mcClient      *gopcp_rpc.PCPConnectionHandler
 	delayDuration time.Duration
 	callDuration  time.Duration
+	host          string
+	port          int
+	NALocalIP     string
+	NAPort        int
+	workerMux     sync.Mutex
+	// {type: {wokerId: WorkerInfo}}
+	workersInfo map[string]map[string]WorkerReport
 }
 
-func GetDmpClient(dmpClientConfig DmpClientConfig) *DmpClient {
-	// client pool for dmp service
-	dmpClientPool := gopcp_rpc.GetPCPRPCPool(func() (string, int, error) {
-		return dmpClientConfig.Host, dmpClientConfig.Port, nil
-	}, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
-		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{})
-	}, dmpClientConfig.PoolSize, dmpClientConfig.Duration, dmpClientConfig.RetryDuration)
-
+func GetMCClient(mcClientConfig MCClientConfig) *MCClient {
 	var workerMux sync.Mutex
-	return &DmpClient{dmpClientPool, []WorkerReport{}, &workerMux,
-		100 * time.Millisecond, 2 * time.Minute}
+
+	mcClient := &MCClient{
+		mcClient:      nil,
+		delayDuration: 100 * time.Millisecond,
+		callDuration:  2 * time.Minute,
+		host:          mcClientConfig.Host,
+		port:          mcClientConfig.Port,
+		NALocalIP:     mcClientConfig.NALocalIP,
+		NAPort:        mcClientConfig.NAPort,
+
+		workerMux: workerMux,
+	}
+
+	go mcClient.report()
+
+	return mcClient
 }
 
-func (dc *DmpClient) report() {
-	for {
-		dc.workerMux.Lock()
-		for _, workerReport := range dc.workerReports {
-			if item, err := dc.dmpClientPool.Get(); err != nil {
-				if client, ok := item.(*gopcp_rpc.PCPConnectionHandler); ok {
-					client.Call(
-						client.PcpClient.Call("ReportWorker", workerReport),
-						dc.callDuration,
-					)
-				}
-			}
-		}
-		dc.workerMux.Unlock()
-		time.Sleep(dc.delayDuration)
+func (dc *MCClient) connect() {
+	if mcClient, err := gopcp_rpc.GetPCPRPCClient(dc.host, dc.port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
+		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
+			//
+		})
+	}, func(e error) {
+		// on close
+		dc.mcClient = nil
+	}); err != nil {
+		// retry
+	} else {
+		dc.mcClient = mcClient
 	}
 }
 
-func (dc *DmpClient) ReportGetWorker(id string, serviceType string) {
+func (dc *MCClient) UpdateReport(workersInfo map[string]map[string]WorkerReport) {
 	dc.workerMux.Lock()
-	dc.workerReports = append(dc.workerReports, WorkerReport{"Add", id, serviceType})
 	defer dc.workerMux.Unlock()
+	dc.workersInfo = workersInfo
 }
 
-func (dc *DmpClient) ReportLossWorker(id string) {
-	dc.workerMux.Lock()
-	dc.workerReports = append(dc.workerReports, WorkerReport{"Remove", id, ""})
-	defer dc.workerMux.Unlock()
+// report worker information to memory centre for sharing
+// {type: {wokerId: WorkerInfo}}
+func (dc *MCClient) report() {
+	for {
+		if dc.mcClient != nil && dc.workersInfo != nil {
+			dc.workerMux.Lock()
+			for st, workerMap := range dc.workersInfo {
+				key := st + "." + dc.NALocalIP + ":" + strconv.Itoa(dc.port)
+				if _, err := dc.mcClient.Call(
+					dc.mcClient.PcpClient.Call("set", key, workerMap),
+					dc.callDuration,
+				); err != nil {
+					fmt.Printf("error happened when sharing worker information: %v", err)
+				}
+			}
+			dc.workerMux.Unlock()
+		} else {
+			dc.connect()
+		}
+		time.Sleep(dc.delayDuration)
+	}
 }
 
 // Load balancer for workers
@@ -100,6 +127,31 @@ type WorkerLB struct {
 func GetWorkerLB() *WorkerLB {
 	var activeWorkerMap sync.Map
 	return &WorkerLB{activeWorkerMap}
+}
+
+// get worker information
+func (wlb *WorkerLB) GetWorkersInfo() map[string]map[string]WorkerReport {
+	workersInfo := map[string]map[string]WorkerReport{}
+
+	wlb.activeWorkerMap.Range(func(stI, wmI interface{}) bool {
+		st, _ := stI.(string)
+		wm, _ := wmI.(sync.Map)
+		if _, ok := workersInfo[st]; !ok {
+			workersInfo[st] = map[string]WorkerReport{}
+		}
+
+		wm.Range(func(idI, workerI interface{}) bool {
+			id, _ := idI.(string)
+			workersInfo[st][id] = WorkerReport{
+				Id: id,
+			}
+			return true
+		})
+
+		return true
+	})
+
+	return workersInfo
 }
 
 func (wlb *WorkerLB) AddWorker(worker Worker) {
@@ -158,11 +210,10 @@ func (wlb *WorkerLB) PickUpWorker(serviceType string) (*Worker, bool) {
 //   na call worker to get type.
 //   (getServiceType)
 // for worker, need to expose functions: {getServiceType}
-//
-func StartTcpServer(port int, dmpClientConfig DmpClientConfig, workerConfig WorkerConfig) error {
+func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig WorkerConfig) error {
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = GetWorkerLB()
-	var dmpClient = GetDmpClient(dmpClientConfig)
+	var mcClient = GetMCClient(mcClientConfig)
 
 	// create server
 	return gopcp_service.StartTcpServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
@@ -216,7 +267,7 @@ func StartTcpServer(port int, dmpClientConfig DmpClientConfig, workerConfig Work
 				// remove worker when connection closed
 				if workerLB.RemoveWorker(worker) {
 					// report connection status to DMP
-					dmpClient.ReportLossWorker(worker.Id)
+					go mcClient.UpdateReport(workerLB.GetWorkersInfo())
 				}
 			},
 
@@ -230,7 +281,7 @@ func StartTcpServer(port int, dmpClientConfig DmpClientConfig, workerConfig Work
 				} else {
 					workerLB.AddWorker(worker)
 					// report connection status to DMP
-					dmpClient.ReportGetWorker(worker.Id, worker.ServiceType)
+					go mcClient.UpdateReport(workerLB.GetWorkersInfo())
 				}
 			},
 		}
@@ -239,16 +290,21 @@ func StartTcpServer(port int, dmpClientConfig DmpClientConfig, workerConfig Work
 
 // read port from env
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
 		panic("missing env PORT which must exists.")
 	} else {
-		if port_int, err := strconv.Atoi(port); err != nil {
+		ip, _ := GetOutboundIP()
+		fmt.Printf("local ip is %v\n", *ip)
+
+		if port, err := strconv.Atoi(portStr); err != nil {
 			panic("Env PORT must be a number.")
 		} else {
-			if err = StartTcpServer(port_int, DmpClientConfig{
+			if err = StartTcpServer(port, MCClientConfig{
 				Host:          "127.0.0.1",
 				Port:          3666,
+				NALocalIP:     ip.String(),
+				NAPort:        port,
 				Duration:      5 * time.Minute,
 				RetryDuration: 2 * time.Second,
 			}, WorkerConfig{
@@ -258,4 +314,17 @@ func main() {
 			}
 		}
 	}
+}
+
+func GetOutboundIP() (*net.IP, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return nil, err
+	}
+
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	return &localAddr.IP, nil
 }
