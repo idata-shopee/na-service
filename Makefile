@@ -16,4 +16,7 @@ update-dep:
 run:
 	@go run main.go
 
+build:
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o target/docker/stage/opt/docker/bin/na_service .
+
 .PHONY: test
