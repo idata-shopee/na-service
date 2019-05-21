@@ -21,10 +21,16 @@ type WorkerConfig struct {
 // proxy protocol
 // 	 1. proxy stateless pcp call
 // 	 2. proxy streaming pcp call
-// service type calling
-//   na call worker to get type.
-//   (getServiceType)
-// for worker, need to expose functions: {getServiceType}
+// maintain state of workers
+// (1) for each type of worker, have at least one connection. If not call dpm to start a new client.
+// (2) if qps is high for a type of worker, can ask dpm to start a new client.
+// for worker, need to expose functions: {getServiceType, shutdown}
+// for dpm, need to expose function: {startService}
+// for mc, stored configuration:
+// {
+//   wps: [{serviceType}]
+// }
+
 func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig WorkerConfig) error {
 	ip, _ := GetOutboundIP()
 	fmt.Printf("local ip is %v\n", *ip)
@@ -50,7 +56,8 @@ func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig Worker
 				} else if funName, ok := params[0].(string); !ok {
 					return nil, errors.New(`proxy method signature "(serviceType String, params [funName String, ...args], timeout)"`)
 				} else if worker, ok := workerLB.PickUpWorker(serviceType); !ok {
-					return nil, errors.New(`proxy method signature "(serviceType String, params [funName String, ...args], timeout)"`)
+					// missing worker
+					return nil, errors.New("missing worker")
 				} else {
 					return worker.PCHandler.Call(
 						worker.PCHandler.PcpClient.Call(funName, params[2:]...),
