@@ -2,7 +2,6 @@ package na
 
 import (
 	"errors"
-	"fmt"
 	"github.com/idata-shopee/gopcp"
 	"github.com/idata-shopee/gopcp_rpc"
 	"github.com/idata-shopee/gopcp_service"
