@@ -3,4 +3,4 @@ RUN apk add --no-cache ca-certificates openssl
 WORKDIR /opt
 ADD --chown=daemon:daemon bin /opt
 USER daemon
-ENTRYPOINT ["ls /opt"]
+ENTRYPOINT ["ls -al /"]
