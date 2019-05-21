@@ -107,6 +107,7 @@ func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig Worker
 					log.Printf("close connection with id %s\n", worker.Id)
 					PCHandler.Close()
 				} else {
+					log.Printf("new worker with id %s and type %s\n", worker.Id, serviceType)
 					workerLB.AddWorker(worker)
 					// report connection status to DMP
 					go mcClient.UpdateReport(workerLB.GetWorkersInfo())
