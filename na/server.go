@@ -8,6 +8,7 @@ import (
 	"github.com/idata-shopee/gopcp_service"
 	"github.com/idata-shopee/gopcp_stream"
 	"github.com/satori/go.uuid"
+	"log"
 	"net"
 	"time"
 )
@@ -33,7 +34,7 @@ type WorkerConfig struct {
 
 func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig WorkerConfig) error {
 	ip, _ := GetOutboundIP()
-	fmt.Printf("local ip is %v\n", *ip)
+	log.Printf("local ip is %v\n", *ip)
 
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = GetWorkerLB()
@@ -98,10 +99,13 @@ func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig Worker
 
 			// new connection
 			func(PCHandler *gopcp_rpc.PCPConnectionHandler) {
+				log.Printf("new connection with id %s\n", worker.Id)
 				// new connection, ask for type.
 				if serviceTypeI, err := PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout); err != nil {
+					log.Printf("close connection with id %s\n", worker.Id)
 					PCHandler.Close()
 				} else if serviceType, ok := serviceTypeI.(string); !ok || serviceType == "" {
+					log.Printf("close connection with id %s\n", worker.Id)
 					PCHandler.Close()
 				} else {
 					workerLB.AddWorker(worker)
