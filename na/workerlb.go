@@ -22,31 +22,6 @@ func GetWorkerLB() *WorkerLB {
 	return &WorkerLB{activeWorkerMap}
 }
 
-// get worker information
-func (wlb *WorkerLB) GetWorkersInfo() map[string]map[string]WorkerReport {
-	workersInfo := map[string]map[string]WorkerReport{}
-
-	wlb.activeWorkerMap.Range(func(stI, wmI interface{}) bool {
-		st, _ := stI.(string)
-		wm, _ := wmI.(sync.Map)
-		if _, ok := workersInfo[st]; !ok {
-			workersInfo[st] = map[string]WorkerReport{}
-		}
-
-		wm.Range(func(idI, workerI interface{}) bool {
-			id, _ := idI.(string)
-			workersInfo[st][id] = WorkerReport{
-				Id: id,
-			}
-			return true
-		})
-
-		return true
-	})
-
-	return workersInfo
-}
-
 func (wlb *WorkerLB) AddWorker(worker Worker) {
 	var workerMap sync.Map
 	workerMapI, _ := wlb.activeWorkerMap.LoadOrStore(worker.Id, workerMap)

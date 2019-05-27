@@ -8,7 +8,6 @@ import (
 	"github.com/idata-shopee/gopcp_stream"
 	"github.com/satori/go.uuid"
 	"log"
-	"net"
 	"time"
 )
 
@@ -18,26 +17,9 @@ type WorkerConfig struct {
 	Timeout time.Duration
 }
 
-// proxy protocol
-// 	 1. proxy stateless pcp call
-// 	 2. proxy streaming pcp call
-// maintain state of workers
-// (1) for each type of worker, have at least one connection. If not call dpm to start a new client.
-// (2) if qps is high for a type of worker, can ask dpm to start a new client.
-// for worker, need to expose functions: {getServiceType, shutdown}
-// for dpm, need to expose function: {startService}
-// for mc, stored configuration:
-// {
-//   wps: [{serviceType}]
-// }
-
-func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig WorkerConfig) error {
-	ip, _ := GetOutboundIP()
-	log.Printf("local ip is %v\n", *ip)
-
+func StartTcpServer(port int, workerConfig WorkerConfig) error {
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = GetWorkerLB()
-	var mcClient = GetMCClient(ip.String(), port, mcClientConfig)
 
 	// create server
 	return gopcp_service.StartTcpServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
@@ -90,10 +72,7 @@ func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig Worker
 			// on close of connection
 			func(err error) {
 				// remove worker when connection closed
-				if workerLB.RemoveWorker(worker) {
-					// report connection status to DMP
-					go mcClient.UpdateReport(workerLB.GetWorkersInfo())
-				}
+				workerLB.RemoveWorker(worker)
 			},
 
 			// new connection
@@ -109,23 +88,8 @@ func StartTcpServer(port int, mcClientConfig MCClientConfig, workerConfig Worker
 				} else {
 					log.Printf("new worker with id %s and type %s\n", worker.Id, serviceType)
 					workerLB.AddWorker(worker)
-					// report connection status to DMP
-					go mcClient.UpdateReport(workerLB.GetWorkersInfo())
 				}
 			},
 		}
 	})
-}
-
-func GetOutboundIP() (*net.IP, error) {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return nil, err
-	}
-
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-
-	return &localAddr.IP, nil
 }
