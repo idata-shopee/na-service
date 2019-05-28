@@ -14,28 +14,28 @@ type Worker struct {
 
 // Load balancer for workers
 type WorkerLB struct {
-	activeWorkerMap sync.Map
+	ActiveWorkerMap sync.Map
 }
 
 func GetWorkerLB() *WorkerLB {
-	var activeWorkerMap sync.Map
-	return &WorkerLB{activeWorkerMap}
+	var ActiveWorkerMap sync.Map
+	return &WorkerLB{ActiveWorkerMap}
 }
 
 func (wlb *WorkerLB) AddWorker(worker Worker) {
 	var workerMap sync.Map
-	workerMapI, _ := wlb.activeWorkerMap.LoadOrStore(worker.Id, workerMap)
-	workerMap = workerMapI.(sync.Map)
+	v, _ := wlb.ActiveWorkerMap.LoadOrStore(worker.ServiceType, &workerMap)
+	m := v.(*sync.Map)
 	// save it to active worker map
-	workerMap.Store(worker.Id, worker)
+	m.Store(worker.Id, &worker)
 }
 
 func (wlb *WorkerLB) RemoveWorker(worker Worker) bool {
 	// remove worker when connection closed
-	if workerMapI, ok := wlb.activeWorkerMap.Load(worker.ServiceType); ok {
-		workerMap := workerMapI.(sync.Map)
-		if _, ok := workerMap.Load(worker.Id); ok {
-			workerMap.Delete(worker.Id)
+	if v, ok := wlb.ActiveWorkerMap.Load(worker.ServiceType); ok {
+		m := v.(*sync.Map)
+		if _, ok := m.Load(worker.Id); ok {
+			m.Delete(worker.Id)
 			// TODO remove if woker map is empty
 			return true
 		}
@@ -46,26 +46,31 @@ func (wlb *WorkerLB) RemoveWorker(worker Worker) bool {
 // current use random on picking up strategy
 // random algorithm: reservoir sampling, https://en.wikipedia.org/wiki/Reservoir_sampling
 func (wlb *WorkerLB) PickUpWorker(serviceType string) (*Worker, bool) {
-	if activeMapI, ok := wlb.activeWorkerMap.Load(serviceType); ok {
-		var activeMap = activeMapI.(sync.Map)
-		var chosen interface{} = nil
+	if v, ok := wlb.ActiveWorkerMap.Load(serviceType); ok {
+		var m = v.(*sync.Map)
+		var chosen *Worker
 		var curIdx = -1
 
-		activeMap.Range(func(key, worker interface{}) bool {
+		m.Range(func(key, worker interface{}) bool {
 			curIdx++
+
 			if chosen == nil {
-				chosen = worker
+				chosen = worker.(*Worker)
 			} else {
 				j := rand.Intn(curIdx + 1)
 				if j < 1 {
-					chosen = worker
+					chosen = worker.(*Worker)
 				}
 			}
 
 			return true
 		})
 
-		return chosen.(*Worker), true
+		if chosen == nil {
+			return nil, false
+		}
+
+		return chosen, true
 	} else {
 		return nil, false
 	}
