@@ -32,24 +32,49 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 			// proxy pcp call
 			// (proxy, serviceType, ...args)
 			"proxy": gopcp.ToLazySandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				log.Println(args)
 				if len(args) < 3 {
 					return nil, getProxySignError(args)
-				} else if serviceType, ok := args[0].(string); !ok {
+				}
+
+				serviceType, ok := args[0].(string)
+
+				if !ok {
 					return nil, getProxySignError(args)
-				} else if code, ok := args[1].(string); !ok {
+				}
+
+				list, ok := args[1].([]interface{})
+
+				if !ok || len(list) <= 0 {
 					return nil, getProxySignError(args)
-				} else if timeout, ok := args[2].(float64); !ok {
+				}
+
+				params, ok := list[0].([]interface{})
+
+				if !ok {
 					return nil, getProxySignError(args)
-				} else if worker, ok := workerLB.PickUpWorker(serviceType); !ok {
+				}
+
+				funName, ok := params[0].(string)
+
+				if !ok {
+					return nil, getProxySignError(args)
+				}
+
+				timeout, ok := args[2].(float64)
+				if !ok {
+					return nil, getProxySignError(args)
+				}
+
+				worker, ok := workerLB.PickUpWorker(serviceType)
+				if !ok {
 					// missing worker
 					return nil, errors.New("missing worker for service type " + serviceType)
-				} else {
-					return worker.PCHandler.CallRemote(
-						code,
-						time.Duration(int(timeout))*time.Second,
-					)
 				}
+
+				return worker.PCHandler.Call(
+					worker.PCHandler.PcpClient.Call(funName, params[1:]...),
+					time.Duration(int(timeout))*time.Second,
+				)
 			}),
 
 			// proxy pcp stream call
