@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/idata-shopee/gopcp"
 	"github.com/idata-shopee/gopcp_rpc"
-	"github.com/idata-shopee/gopcp_service"
 	"github.com/idata-shopee/gopcp_stream"
+	"github.com/lock-free/gopcp_service"
 	"github.com/satori/go.uuid"
 	"log"
 	"time"
@@ -30,7 +30,7 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 	return gopcp_service.StartTcpServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
-			// (proxy, serviceType, ...args)
+			// (proxy, serviceType, list, timeout)
 			"proxy": gopcp.ToLazySandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				if len(args) < 3 {
 					return nil, getProxySignError(args)

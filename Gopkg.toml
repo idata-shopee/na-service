@@ -31,7 +31,7 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/idata-shopee/gopcp_service"
+  name = "github.com/lock-free/gopcp_service"
 
 [[constraint]]
   branch = "master"
