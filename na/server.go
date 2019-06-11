@@ -3,10 +3,10 @@ package na
 import (
 	"errors"
 	"fmt"
-	"github.com/idata-shopee/gopcp"
-	"github.com/idata-shopee/gopcp_rpc"
-	"github.com/idata-shopee/gopcp_stream"
+	"github.com/lock-free/gopcp"
+	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_service"
+	"github.com/lock-free/gopcp_stream"
 	"github.com/satori/go.uuid"
 	"log"
 	"time"

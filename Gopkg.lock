@@ -11,59 +11,51 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:141e42298899ea9afdf79d04031472538584877344c37c8da384e4830453fdca"
-  name = "github.com/idata-shopee/goaio"
+  digest = "1:562fc7c45fb24cd6519f945e4a9a626455c871853ad0cb009908cf4269f9375a"
+  name = "github.com/lock-free/goaio"
   packages = ["."]
   pruneopts = "UT"
-  revision = "fd8d47c91f1785e6ec220088fa018334e9df3b6b"
+  revision = "9d53a70585c6663b54f9ce6dfbfce7259ad09e25"
 
 [[projects]]
   branch = "master"
-  digest = "1:a99b91cdaf3b193940352722e4ee8e3dafeb8b87705efa5bb61bd9627e74246f"
-  name = "github.com/idata-shopee/gopcp"
+  digest = "1:5f58a8cc2dbb68949205a7239c078d953784a4baa528a153fa5cd397f85cf7b4"
+  name = "github.com/lock-free/gopcp"
   packages = ["."]
   pruneopts = "UT"
-  revision = "46afddfb90bb1b9d14345c8d4c0d3e4ca543819c"
+  revision = "4bb6ee155fea63ee5b8251602df93991b29f9f55"
 
 [[projects]]
   branch = "master"
-  digest = "1:32fc9ffd8d3a9cbe8d6ebcad37c0e76e0f81382988453de792176959d121efc7"
-  name = "github.com/idata-shopee/gopcp_rpc"
+  digest = "1:eb5b2d5bb9ad485e35deb033d4fbbd2c7135af2de15708de9d3d461c57ab0554"
+  name = "github.com/lock-free/gopcp_rpc"
   packages = ["."]
   pruneopts = "UT"
-  revision = "3b1764f629d7e2dbe7664070f334b7dd758faf02"
+  revision = "6c983b73aa85a68eb2bc3a0016c98bf017ca6b05"
 
 [[projects]]
   branch = "master"
-  digest = "1:b19d9b55357e831e46a048a350887698c7e9b5146a4ef79d4bde5d0b65bec591"
-  name = "github.com/idata-shopee/gopcp_stream"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "b66198216d74bd3d1c4c03dff2503dd138c98ca6"
-
-[[projects]]
-  branch = "master"
-  digest = "1:ca3681f6e4804d2b2d6ebfb237a2344f3309b61c462f637f03fbb2174f6ce97f"
-  name = "github.com/idata-shopee/gopool"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "e1576262f8643bd2a72e0a615ae31c1f103f6e86"
-
-[[projects]]
-  branch = "master"
-  digest = "1:94bcac7b084758405ebc2b2aa6f9f1d4455bebb4b4ad340124935b1958fc6e3c"
-  name = "github.com/idata-shopee/na_service"
-  packages = ["na"]
-  pruneopts = "UT"
-  revision = "fdc089fe0c3809ce47e7e7b02b81aafcc6d4ad33"
-
-[[projects]]
-  branch = "master"
-  digest = "1:89abaf5f9fe003b7e440dd3bf6c1c22fc286b878dc7ad9695061fd743793e0cf"
+  digest = "1:e304a8a0b0b88d7ef66ffc5d3c4b24127905306c7f8d6e2799a8d59d05965de5"
   name = "github.com/lock-free/gopcp_service"
   packages = ["."]
   pruneopts = "UT"
-  revision = "0a9644fb906a7f97fd29d80c20c6663021fa3ed4"
+  revision = "9bd2470c2db331a722426349c4c065797583dc2c"
+
+[[projects]]
+  branch = "master"
+  digest = "1:8de4af927c33fc7a525457c2d694490131d37b755d03d504ad838fd0e422d686"
+  name = "github.com/lock-free/gopcp_stream"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a77f7b6c17b34b658b81decc64688fb9a2da0db3"
+
+[[projects]]
+  branch = "master"
+  digest = "1:9d0f1d5239e82b93dbed4775577e17e45de497982ebe5b6eb0dea1b6c108b04d"
+  name = "github.com/lock-free/gopool"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "329206275cf067eb4e3d868d29b8948dbdc88879"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -115,11 +107,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/idata-shopee/gopcp",
-    "github.com/idata-shopee/gopcp_rpc",
-    "github.com/idata-shopee/gopcp_stream",
-    "github.com/idata-shopee/na_service/na",
+    "github.com/lock-free/gopcp",
+    "github.com/lock-free/gopcp_rpc",
     "github.com/lock-free/gopcp_service",
+    "github.com/lock-free/gopcp_stream",
     "github.com/satori/go.uuid",
   ]
   solver-name = "gps-cdcl"

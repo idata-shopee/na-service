@@ -1,7 +1,7 @@
 package na
 
 import (
-	"github.com/idata-shopee/gopcp_rpc"
+	"github.com/lock-free/gopcp_rpc"
 	"math/rand"
 	"sync"
 )

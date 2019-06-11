@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/idata-shopee/na_service/na"
+	"github.com/lock-free/na_service/na"
 	"os"
 	"strconv"
 	"time"
