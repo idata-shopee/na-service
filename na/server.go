@@ -19,7 +19,11 @@ type WorkerConfig struct {
 }
 
 func getProxySignError(args []interface{}) error {
-	return fmt.Errorf(`"proxy" method signature "(serviceType String, params, timeout)", args are %v`, args)
+	return fmt.Errorf(`"proxy" method signature "(serviceType String, list []Any, timeout Int)" eg: ("user-service", ["getUser", "01234"], 120), args are %v`, args)
+}
+
+func getProxyStreamSignError(args []interface{}) error {
+	return fmt.Errorf(`"proxyStream" method signature "(serviceType String, list []Any, timeout Int)" eg: ("download-service", ["getRecords", 1000], 120), args are %v`, args)
 }
 
 func StartTcpServer(port int, workerConfig WorkerConfig) error {
@@ -32,39 +36,44 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
 			"proxy": gopcp.ToLazySandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				var (
+					serviceType string
+					list        []interface{}
+					params      []interface{}
+					funName     string
+					timeout     float64
+					ok          bool = true
+				)
+
 				if len(args) < 3 {
-					return nil, getProxySignError(args)
+					ok = false
 				}
 
-				serviceType, ok := args[0].(string)
+				if ok {
+					serviceType, ok = args[0].(string)
+				}
+
+				if ok {
+					list, ok = args[1].([]interface{})
+				}
+
+				if ok {
+					params, ok = list[0].([]interface{})
+				}
+
+				if ok {
+					funName, ok = params[0].(string)
+				}
+
+				if ok {
+					timeout, ok = args[2].(float64)
+				}
 
 				if !ok {
 					return nil, getProxySignError(args)
 				}
 
-				list, ok := args[1].([]interface{})
-
-				if !ok || len(list) <= 0 {
-					return nil, getProxySignError(args)
-				}
-
-				params, ok := list[0].([]interface{})
-
-				if !ok {
-					return nil, getProxySignError(args)
-				}
-
-				funName, ok := params[0].(string)
-
-				if !ok {
-					return nil, getProxySignError(args)
-				}
-
-				timeout, ok := args[2].(float64)
-				if !ok {
-					return nil, getProxySignError(args)
-				}
-
+				// choose worker
 				worker, ok := workerLB.PickUpWorker(serviceType)
 				if !ok {
 					// missing worker
@@ -78,19 +87,82 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 			}),
 
 			// proxy pcp stream call
+			// (proxyStream, serviceType, funName, ...params)
 			"proxyStream": streamServer.StreamApi(func(
 				streamProducer gopcp_stream.StreamProducer,
 				args []interface{},
 				attachment interface{},
 				pcpServer *gopcp.PcpServer,
 			) (interface{}, error) {
-				// TODO error handling
-				seed := args[0].(string)
-				streamProducer.SendData(seed+"1", 10*time.Second)
-				streamProducer.SendData(seed+"2", 10*time.Second)
-				streamProducer.SendData(seed+"3", 10*time.Second)
-				streamProducer.SendEnd(10 * time.Second)
-				return nil, nil
+				var (
+					serviceType string
+					list        []interface{}
+					params      []interface{}
+					funName     string
+					timeout     float64
+					ok          bool = true
+				)
+
+				if len(args) < 3 {
+					ok = false
+				}
+
+				if ok {
+					serviceType, ok = args[0].(string)
+				}
+
+				if ok {
+					list, ok = args[1].([]interface{})
+				}
+
+				if ok {
+					params, ok = list[0].([]interface{})
+				}
+
+				if ok {
+					funName, ok = params[0].(string)
+				}
+
+				if ok {
+					timeout, ok = args[2].(float64)
+				}
+
+				if !ok {
+					return nil, getProxyStreamSignError(args)
+				}
+
+				// choose worker
+				worker, ok := workerLB.PickUpWorker(serviceType)
+				if !ok {
+					// missing worker
+					return nil, errors.New("missing worker for service type " + serviceType)
+				}
+				timeoutDuration := time.Duration(int(timeout)) * time.Second
+
+				// pipe stream
+				sexp, err := worker.PCHandler.StreamClient.StreamCall(funName, append(params[1:], func(t int, d interface{}) {
+					// write response of stream back to client
+					switch t {
+					case gopcp_stream.STREAM_DATA:
+						streamProducer.SendData(d, timeoutDuration)
+					case gopcp_stream.STREAM_END:
+						streamProducer.SendEnd(timeoutDuration)
+					default:
+						errMsg, ok := d.(string)
+						if !ok {
+							streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), timeoutDuration)
+						} else {
+							streamProducer.SendError(errMsg, timeoutDuration)
+						}
+					}
+				})...)
+
+				if err != nil {
+					return nil, err
+				}
+
+				// send a stream request to service
+				return worker.PCHandler.Call(*sexp, timeoutDuration)
 			}),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
