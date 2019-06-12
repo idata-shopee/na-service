@@ -73,6 +73,7 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 					return nil, getProxySignError(args)
 				}
 
+				timeoutDuration := time.Duration(int(timeout)) * time.Second
 				// choose worker
 				worker, ok := workerLB.PickUpWorker(serviceType)
 				if !ok {
@@ -82,7 +83,7 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 
 				return worker.PCHandler.Call(
 					worker.PCHandler.PcpClient.Call(funName, params[1:]...),
-					time.Duration(int(timeout))*time.Second,
+					timeoutDuration,
 				)
 			}),
 
