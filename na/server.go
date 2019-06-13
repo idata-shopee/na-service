@@ -3,12 +3,14 @@ package na
 import (
 	"errors"
 	"fmt"
+	"github.com/lock-free/goaio"
 	"github.com/lock-free/gopcp"
 	"github.com/lock-free/gopcp_rpc"
-	"github.com/lock-free/gopcp_service"
 	"github.com/lock-free/gopcp_stream"
 	"github.com/satori/go.uuid"
 	"log"
+	"strconv"
+	"sync"
 	"time"
 )
 
@@ -19,61 +21,115 @@ type WorkerConfig struct {
 }
 
 func getProxySignError(args []interface{}) error {
-	return fmt.Errorf(`"proxy" method signature "(serviceType String, list []Any, timeout Int)" eg: ("user-service", ["getUser", "01234"], 120), args are %v`, args)
+	return fmt.Errorf(`"proxy" method signature "(serviceType String, list []Any, timeout Int)" eg: ("user-service", ["'", ["getUser", "01234"]], 120), args are %v`, args)
 }
 
 func getProxyStreamSignError(args []interface{}) error {
-	return fmt.Errorf(`"proxyStream" method signature "(serviceType String, list []Any, timeout Int)" eg: ("download-service", ["getRecords", 1000], 120), args are %v`, args)
+	return fmt.Errorf(`"proxyStream" method signature "(serviceType String, list []Any, timeout Int)" eg: ("download-service", ["'", ["getRecords", 1000]], 120), args are %v`, args)
 }
 
-func StartTcpServer(port int, workerConfig WorkerConfig) error {
+// (proxy, serviceType, list, timeout)
+func ParseProxyCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
+	var (
+		serviceType string
+		list        []interface{}
+		params      []interface{}
+		funName     string
+		timeout     float64
+		ok          bool = true
+	)
+
+	if len(args) < 3 {
+		ok = false
+	}
+
+	if ok {
+		serviceType, ok = args[0].(string)
+	}
+
+	if ok {
+		list, ok = args[1].([]interface{})
+	}
+
+	if ok {
+		params, ok = list[0].([]interface{})
+	}
+
+	if ok {
+		funName, ok = params[0].(string)
+	}
+
+	if ok {
+		timeout, ok = args[2].(float64)
+	}
+
+	if !ok {
+		return serviceType, funName, nil, time.Duration(int(0)) * time.Second, getProxySignError(args)
+	}
+
+	timeoutDuration := time.Duration(int(timeout)) * time.Second
+
+	return serviceType, funName, params[1:], timeoutDuration, nil
+}
+
+func ParseProxyStreamCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
+	var (
+		serviceType string
+		list        []interface{}
+		params      []interface{}
+		funName     string
+		timeout     float64
+		ok          bool = true
+	)
+
+	if len(args) < 3 {
+		ok = false
+	}
+
+	if ok {
+		serviceType, ok = args[0].(string)
+	}
+
+	if ok {
+		list, ok = args[1].([]interface{})
+	}
+
+	if ok {
+		params, ok = list[0].([]interface{})
+	}
+
+	if ok {
+		funName, ok = params[0].(string)
+	}
+
+	if ok {
+		timeout, ok = args[2].(float64)
+	}
+
+	if !ok {
+		return "", "", nil, time.Duration(int(0)) * time.Second, getProxyStreamSignError(args)
+	}
+
+	return serviceType, funName, params[1:], time.Duration(int(timeout)) * time.Second, nil
+}
+
+func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.TcpServer, error) {
+	log.Println("try to start tcp server at " + strconv.Itoa(port))
+
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = GetWorkerLB()
 
-	// create server
-	return gopcp_service.StartTcpServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
+	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
 			"proxy": gopcp.ToLazySandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				var (
-					serviceType string
-					list        []interface{}
-					params      []interface{}
-					funName     string
-					timeout     float64
-					ok          bool = true
-				)
+				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args)
 
-				if len(args) < 3 {
-					ok = false
+				if err != nil {
+					return nil, err
 				}
 
-				if ok {
-					serviceType, ok = args[0].(string)
-				}
-
-				if ok {
-					list, ok = args[1].([]interface{})
-				}
-
-				if ok {
-					params, ok = list[0].([]interface{})
-				}
-
-				if ok {
-					funName, ok = params[0].(string)
-				}
-
-				if ok {
-					timeout, ok = args[2].(float64)
-				}
-
-				if !ok {
-					return nil, getProxySignError(args)
-				}
-
-				timeoutDuration := time.Duration(int(timeout)) * time.Second
 				// choose worker
 				worker, ok := workerLB.PickUpWorker(serviceType)
 				if !ok {
@@ -82,7 +138,7 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 				}
 
 				return worker.PCHandler.Call(
-					worker.PCHandler.PcpClient.Call(funName, params[1:]...),
+					worker.PCHandler.PcpClient.Call(funName, params...),
 					timeoutDuration,
 				)
 			}),
@@ -95,41 +151,10 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 				attachment interface{},
 				pcpServer *gopcp.PcpServer,
 			) (interface{}, error) {
-				var (
-					serviceType string
-					list        []interface{}
-					params      []interface{}
-					funName     string
-					timeout     float64
-					ok          bool = true
-				)
+				serviceType, funName, params, timeoutDuration, err := ParseProxyStreamCallExp(args)
 
-				if len(args) < 3 {
-					ok = false
-				}
-
-				if ok {
-					serviceType, ok = args[0].(string)
-				}
-
-				if ok {
-					list, ok = args[1].([]interface{})
-				}
-
-				if ok {
-					params, ok = list[0].([]interface{})
-				}
-
-				if ok {
-					funName, ok = params[0].(string)
-				}
-
-				if ok {
-					timeout, ok = args[2].(float64)
-				}
-
-				if !ok {
-					return nil, getProxyStreamSignError(args)
+				if err != nil {
+					return nil, err
 				}
 
 				// choose worker
@@ -138,10 +163,9 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 					// missing worker
 					return nil, errors.New("missing worker for service type " + serviceType)
 				}
-				timeoutDuration := time.Duration(int(timeout)) * time.Second
 
 				// pipe stream
-				sexp, err := worker.PCHandler.StreamClient.StreamCall(funName, append(params[1:], func(t int, d interface{}) {
+				sexp, err := worker.PCHandler.StreamClient.StreamCall(funName, append(params, func(t int, d interface{}) {
 					// write response of stream back to client
 					switch t {
 					case gopcp_stream.STREAM_DATA:
@@ -197,5 +221,25 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 				}
 			},
 		}
-	})
+	}); err != nil {
+		return server, err
+	} else {
+		return server, nil
+	}
+}
+
+func StartTcpServer(port int, workerConfig WorkerConfig) error {
+	server, err := StartNoneBlockingTcpServer(port, workerConfig)
+	if err != nil {
+		return err
+	}
+
+	defer server.Close()
+
+	// blocking forever
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wg.Wait()
+
+	return nil
 }

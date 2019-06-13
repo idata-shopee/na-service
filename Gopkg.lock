@@ -2,14 +2,6 @@
 
 
 [[projects]]
-  digest = "1:318f1c959a8a740366fce4b1e1eb2fd914036b4af58fbd0a003349b305f118ad"
-  name = "github.com/golang/protobuf"
-  packages = ["proto"]
-  pruneopts = "UT"
-  revision = "b5d812f8a3706043e23a9cd5babf2e5423744d30"
-  version = "v1.3.1"
-
-[[projects]]
   branch = "master"
   digest = "1:562fc7c45fb24cd6519f945e4a9a626455c871853ad0cb009908cf4269f9375a"
   name = "github.com/lock-free/goaio"
@@ -35,14 +27,6 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:e304a8a0b0b88d7ef66ffc5d3c4b24127905306c7f8d6e2799a8d59d05965de5"
-  name = "github.com/lock-free/gopcp_service"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "9bd2470c2db331a722426349c4c065797583dc2c"
-
-[[projects]]
-  branch = "master"
   digest = "1:8de4af927c33fc7a525457c2d694490131d37b755d03d504ad838fd0e422d686"
   name = "github.com/lock-free/gopcp_stream"
   packages = ["."]
@@ -65,51 +49,13 @@
   revision = "f58768cc1a7a7e77a3bd49e98cdd21419399b6a3"
   version = "v1.2.0"
 
-[[projects]]
-  branch = "master"
-  digest = "1:f8b491a7c25030a895a0e579742d07136e6958e77ef2d46e769db8eec4e58fcd"
-  name = "golang.org/x/net"
-  packages = [
-    "context",
-    "context/ctxhttp",
-  ]
-  pruneopts = "UT"
-  revision = "461777fb6f67e8cb9d70cda16573678d085a74cf"
-
-[[projects]]
-  branch = "master"
-  digest = "1:8d1c112fb1679fa097e9a9255a786ee47383fa2549a3da71bcb1334a693ebcfe"
-  name = "golang.org/x/oauth2"
-  packages = [
-    ".",
-    "internal",
-  ]
-  pruneopts = "UT"
-  revision = "0f29369cfe4552d0e4bcddc57cc75f4d7e672a33"
-
-[[projects]]
-  digest = "1:6eb6e3b6d9fffb62958cf7f7d88dbbe1dd6839436b0802e194c590667a40412a"
-  name = "google.golang.org/appengine"
-  packages = [
-    "internal",
-    "internal/base",
-    "internal/datastore",
-    "internal/log",
-    "internal/remote_api",
-    "internal/urlfetch",
-    "urlfetch",
-  ]
-  pruneopts = "UT"
-  revision = "b2f4a3cf3c67576a2ee09e1fe62656a5086ce880"
-  version = "v1.6.1"
-
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/lock-free/goaio",
     "github.com/lock-free/gopcp",
     "github.com/lock-free/gopcp_rpc",
-    "github.com/lock-free/gopcp_service",
     "github.com/lock-free/gopcp_stream",
     "github.com/satori/go.uuid",
   ]

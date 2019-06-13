@@ -31,10 +31,6 @@
 
 [[constraint]]
   branch = "master"
-  name = "github.com/lock-free/gopcp_service"
-
-[[constraint]]
-  branch = "master"
   name = "github.com/lock-free/gopcp_stream"
 
 [prune]
