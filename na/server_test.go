@@ -154,10 +154,11 @@ func TestServerStream(t *testing.T) {
 	wg.Add(1)
 
 	txt := ""
-	_, err = naPools.CallProxyStream("testWorker", pcpClient.Call("testStream"), func(t int, d interface{}) {
-		if t == gopcp_stream.STREAM_DATA {
+	_, err = naPools.CallProxyStream("testWorker", pcpClient.Call("testStream"), func(ty int, d interface{}) {
+		if ty == gopcp_stream.STREAM_DATA {
 			txt += d.(string)
-		} else if t == gopcp_stream.STREAM_END {
+		} else if ty == gopcp_stream.STREAM_END {
+			assertEqual(t, txt, "abc", "")
 			wg.Done()
 		}
 	}, time.Duration(120)*time.Second)
