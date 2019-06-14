@@ -19,19 +19,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:eb5b2d5bb9ad485e35deb033d4fbbd2c7135af2de15708de9d3d461c57ab0554"
+  digest = "1:b2024b2986f7c5637c5648c30dc023888d90ab2c51c124e2d48dae5d39101df6"
   name = "github.com/lock-free/gopcp_rpc"
   packages = ["."]
   pruneopts = "UT"
-  revision = "6c983b73aa85a68eb2bc3a0016c98bf017ca6b05"
+  revision = "001ff8da4d27181ef2a1ade5da5013cca990cbf8"
 
 [[projects]]
   branch = "master"
-  digest = "1:8de4af927c33fc7a525457c2d694490131d37b755d03d504ad838fd0e422d686"
+  digest = "1:0af3624ff60dd5859ab1ddec21cf86b4f335b3a6e9fa5951885a5ca2458ab4b9"
   name = "github.com/lock-free/gopcp_stream"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a77f7b6c17b34b658b81decc64688fb9a2da0db3"
+  revision = "ca82a90d3541bb62b2ceda509861f06d696f2cb9"
 
 [[projects]]
   branch = "master"
@@ -40,6 +40,14 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "329206275cf067eb4e3d868d29b8948dbdc88879"
+
+[[projects]]
+  branch = "master"
+  digest = "1:0e208d19be8eb7d896687497b719b81ac9a59a03137847f9a048074cbab8f5ab"
+  name = "github.com/lock-free/obrero"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "88c42569d0ff731e7c1bfb2f31ea5acc8ca2cc26"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -57,6 +65,7 @@
     "github.com/lock-free/gopcp",
     "github.com/lock-free/gopcp_rpc",
     "github.com/lock-free/gopcp_stream",
+    "github.com/lock-free/obrero",
     "github.com/satori/go.uuid",
   ]
   solver-name = "gps-cdcl"
