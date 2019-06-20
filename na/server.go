@@ -123,7 +123,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
-			"proxy": gopcp.ToLazySandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+			"proxy": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args)
 
 				if err != nil {
