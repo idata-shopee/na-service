@@ -35,6 +35,11 @@ func TestParseProxyStreamCallExp(t *testing.T) {
 	assertEqual(t, to, time.Duration(120)*time.Second, "")
 }
 
+func TestParseProxyStreamCallExpError(t *testing.T) {
+	_, _, _, _, err := ParseProxyStreamCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
+	assertEqual(t, strings.Index(err.Error(), "proxy") != -1, true, "")
+}
+
 func TestServerBase(t *testing.T) {
 	pcpClient := gopcp.PcpClient{}
 	// start server
