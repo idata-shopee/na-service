@@ -138,7 +138,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				return worker.PCHandler.Call(
-					worker.PCHandler.PcpClient.Call(funName, params...),
+					gopcp.CallResult{append([]interface{}{funName}, params...)},
 					timeoutDuration,
 				)
 			}),
@@ -165,7 +165,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				// pipe stream
-				sexp, err := worker.PCHandler.StreamClient.StreamCall(funName, append(params, func(t int, d interface{}) {
+				sparams, err := worker.PCHandler.StreamClient.ParamsToStreamParams(append(params, func(t int, d interface{}) {
 					// write response of stream back to client
 					switch t {
 					case gopcp_stream.STREAM_DATA:
@@ -180,14 +180,14 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 							streamProducer.SendError(errMsg, timeoutDuration)
 						}
 					}
-				})...)
+				}))
 
 				if err != nil {
 					return nil, err
 				}
 
 				// send a stream request to service
-				return worker.PCHandler.Call(*sexp, timeoutDuration)
+				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{funName}, sparams...)}, timeoutDuration)
 			}),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
