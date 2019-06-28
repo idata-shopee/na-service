@@ -28,6 +28,19 @@ func getProxyStreamSignError(args []interface{}) error {
 	return fmt.Errorf(`"proxyStream" method signature "(serviceType String, list []Any, timeout Int)" eg: ("download-service", ["'", ["getRecords", 1000]], 120), args are %v`, args)
 }
 
+func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
+	return func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (ret interface{}, err error) {
+		t1 := time.Now().Unix()
+
+		log.Printf("[access-%s] args=%v\n", logPrefix, args)
+		ret, err = fn(args, attachment, pcpServer)
+
+		t2 := time.Now().Unix()
+		log.Printf("[complete-%s] args=%v, time=%d\n", logPrefix, args, t2-t1)
+		return
+	}
+}
+
 // (proxy, serviceType, list, timeout)
 func ParseProxyCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
 	var (
@@ -123,7 +136,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
-			"proxy": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+			"proxy": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args)
 
 				if err != nil {
@@ -141,7 +154,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 					gopcp.CallResult{append([]interface{}{funName}, params...)},
 					timeoutDuration,
 				)
-			}),
+			})),
 
 			// proxy pcp stream call
 			// (proxyStream, serviceType, funName, ...params)
