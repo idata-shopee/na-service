@@ -202,6 +202,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				// send a stream request to service
 				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{funName}, sparams...)}, timeoutDuration)
 			}),
+			// TODO get workers information
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker Worker
@@ -212,6 +213,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// on close of connection
 			func(err error) {
 				// remove worker when connection closed
+				log.Printf("connection broken, worker is %v\n", worker)
 				workerLB.RemoveWorker(worker)
 			},
 
