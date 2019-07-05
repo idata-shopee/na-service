@@ -117,6 +117,17 @@ func TestFunHandleSlice(t *testing.T) {
 	}, pcpClient.Call("countSlice", []int{1, 2, 3}), float64(3))
 }
 
+func TestFunHandleMap(t *testing.T) {
+	pcpClient := gopcp.PcpClient{}
+	testBaseCall(t, func(*gopcp_stream.StreamServer) *gopcp.Sandbox {
+		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
+			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testWorker", nil
+			}),
+		})
+	}, pcpClient.Call("prop", pcpClient.Call("Map", "a", 1, "b", 2), "a"), float64(1))
+}
+
 func TestFunHandleSlice2(t *testing.T) {
 	pcpClient := gopcp.PcpClient{}
 	testBaseCall(t, func(*gopcp_stream.StreamServer) *gopcp.Sandbox {
