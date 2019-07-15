@@ -24,7 +24,7 @@ func TestParseProxyCallExp(t *testing.T) {
 
 func TestParseProxyCallExpError(t *testing.T) {
 	_, _, _, _, err := ParseProxyCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, strings.Index(err.Error(), "proxy") != -1, true, "")
+	assertEqual(t, strings.Index(err.Error(), "unexpect args in calling") != -1, true, "")
 }
 
 func TestParseProxyStreamCallExp(t *testing.T) {
@@ -39,7 +39,7 @@ func TestParseProxyStreamCallExp(t *testing.T) {
 
 func TestParseProxyStreamCallExpError(t *testing.T) {
 	_, _, _, _, err := ParseProxyStreamCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, strings.Index(err.Error(), "proxy") != -1, true, "")
+	assertEqual(t, strings.Index(err.Error(), "unexpect args in calling") != -1, true, "")
 }
 
 func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callResult gopcp.CallResult, expect interface{}) {

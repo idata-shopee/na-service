@@ -20,12 +20,8 @@ type WorkerConfig struct {
 	Timeout time.Duration
 }
 
-func getProxySignError(args []interface{}) error {
-	return fmt.Errorf(`"proxy" method signature "(serviceType String, list []Any, timeout Int)" eg: ("user-service", ["'", ["getUser", "01234"]], 120), args are %v`, args)
-}
-
-func getProxyStreamSignError(args []interface{}) error {
-	return fmt.Errorf(`"proxyStream" method signature "(serviceType String, list []Any, timeout Int)" eg: ("download-service", ["'", ["getRecords", 1000]], 120), args are %v`, args)
+func getParamsError(args []interface{}) error {
+	return fmt.Errorf(`unexpect args in calling, args are %v`, args)
 }
 
 func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
@@ -77,7 +73,7 @@ func ParseProxyCallExp(args []interface{}) (string, string, []interface{}, time.
 	}
 
 	if !ok {
-		return serviceType, funName, nil, time.Duration(int(0)) * time.Second, getProxySignError(args)
+		return serviceType, funName, nil, time.Duration(int(0)) * time.Second, getParamsError(args)
 	}
 
 	timeoutDuration := time.Duration(int(timeout)) * time.Second
@@ -120,7 +116,7 @@ func ParseProxyStreamCallExp(args []interface{}) (string, string, []interface{},
 	}
 
 	if !ok {
-		return "", "", nil, time.Duration(int(0)) * time.Second, getProxyStreamSignError(args)
+		return "", "", nil, time.Duration(int(0)) * time.Second, getParamsError(args)
 	}
 
 	return serviceType, funName, params[1:], time.Duration(int(timeout)) * time.Second, nil
@@ -145,6 +141,35 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 				// choose worker
 				worker, ok := workerLB.PickUpWorker(serviceType)
+				if !ok {
+					// missing worker
+					return nil, errors.New("missing worker for service type " + serviceType)
+				}
+
+				return worker.PCHandler.Call(
+					gopcp.CallResult{append([]interface{}{funName}, params...)},
+					timeoutDuration,
+				)
+			})),
+
+			// (proxy, workerId, serviceType, list, timeout)
+			"proxyById": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				if len(args) < 1 {
+					return nil, getParamsError(args)
+				}
+				workerId, ok := args[0].(string)
+				if !ok {
+					return nil, getParamsError(args)
+				}
+
+				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args[1:])
+
+				if err != nil {
+					return nil, err
+				}
+
+				// choose worker
+				worker, ok := workerLB.PickUpWorkerById(workerId, serviceType)
 				if !ok {
 					// missing worker
 					return nil, errors.New("missing worker for service type " + serviceType)

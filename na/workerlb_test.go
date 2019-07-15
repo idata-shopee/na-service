@@ -56,3 +56,17 @@ func TestRemoveFalsy(t *testing.T) {
 	wlb.AddWorker(w1)
 	assertEqual(t, wlb.RemoveWorker(w1), true, "")
 }
+
+func TestPickUpById(t *testing.T) {
+	wlb := GetWorkerLB()
+
+	w1 := Worker{Id: "0", ServiceType: "a"}
+	w2 := Worker{Id: "1", ServiceType: "a"}
+	wlb.AddWorker(w1)
+	wlb.AddWorker(w2)
+
+	w, _ := wlb.PickUpWorkerById("0", "a")
+
+	assertEqual(t, w.ServiceType, "a", "")
+	assertEqual(t, w.Id, "0", "")
+}

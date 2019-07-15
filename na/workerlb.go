@@ -45,6 +45,7 @@ func (wlb *WorkerLB) RemoveWorker(worker Worker) bool {
 
 // current use random on picking up strategy
 // random algorithm: reservoir sampling, https://en.wikipedia.org/wiki/Reservoir_sampling
+// TODO switch to a O(1) algorithm
 func (wlb *WorkerLB) PickUpWorker(serviceType string) (*Worker, bool) {
 	if v, ok := wlb.ActiveWorkerMap.Load(serviceType); ok {
 		var m = v.(*sync.Map)
@@ -74,4 +75,20 @@ func (wlb *WorkerLB) PickUpWorker(serviceType string) (*Worker, bool) {
 	} else {
 		return nil, false
 	}
+}
+
+func (wlb *WorkerLB) PickUpWorkerById(workerId string, serviceType string) (*Worker, bool) {
+	v, ok := wlb.ActiveWorkerMap.Load(serviceType)
+	if !ok {
+		return nil, false
+	}
+	var m = v.(*sync.Map)
+
+	w, ok := m.Load(workerId)
+	if !ok {
+		return nil, false
+	}
+
+	worker := w.(*Worker)
+	return worker, true
 }
