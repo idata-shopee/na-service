@@ -11,19 +11,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:95eee653e5ee8faee62cd8427761127f50ad3e0c9d2c21c8a2cfed1b438826f8"
+  digest = "1:31d1c2ff282b3dde5e54278bc56002c1f036016ccf50b00b4b28fb3c5fd00dc0"
   name = "github.com/lock-free/gopcp"
   packages = ["."]
   pruneopts = "UT"
-  revision = "a1eb8ae43dbcc29ceb1af2fb4756ac43b3d64e63"
+  revision = "3129bdd57c91ebee7d25f7397da0729d0f4c5726"
 
 [[projects]]
   branch = "master"
-  digest = "1:e33e46a6c92da4c96e603214c9a6cd795ee5ee2c678b5077672e00fe0ad0a8f8"
+  digest = "1:3df56a4e75dd5e3ba280add186708d87f06c3fe9a204072ae4bf7f24ce07b8e4"
   name = "github.com/lock-free/gopcp_rpc"
   packages = ["."]
   pruneopts = "UT"
-  revision = "61bb25decdf74c4c8bd510b091e37e1a04dfaaf8"
+  revision = "896efd1d554353325d9c504062ff7302da1bc41d"
 
 [[projects]]
   branch = "master"
@@ -43,11 +43,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a3dd181629fb267420943282959f0242d2ec90d8b05536af9fdd64bd517befc6"
+  digest = "1:601a9dbcd1d5cca55b1cb15c30548ec049d22925cb4241febfc791c373e8d0f8"
   name = "github.com/lock-free/obrero"
   packages = ["."]
   pruneopts = "UT"
-  revision = "92c27c2721794b4bf06946f0a44ba928abf5be8e"
+  revision = "e999c9a6272d8ba39b42aa8013d81920607f5942"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
