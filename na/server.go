@@ -28,16 +28,17 @@ func getParamsError(args []interface{}) error {
 
 func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
 	return func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (ret interface{}, err error) {
-		t1 := time.Now().Unix()
+		t1 := time.Now().UnixNano()
 
 		klog.LogNormal(fmt.Sprintf("%s-access", logPrefix), fmt.Sprintf("args=%v", args))
 		ret, err = fn(args, attachment, pcpServer)
 
-		t2 := time.Now().Unix()
 		if err != nil {
 			klog.LogError(fmt.Sprintf("%s-error", logPrefix), err)
 		}
-		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%d", args, t2-t1))
+
+		t2 := time.Now().UnixNano()
+		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%d", args, (t2-t1)/int64(time.Millisecond)))
 		return
 	}
 }
@@ -145,6 +146,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				// choose worker
+				// TODO add more information to worker, like deployment location which can used to debug live error
 				worker, ok := workerLB.PickUpWorker(serviceType)
 				if !ok {
 					// missing worker
@@ -159,7 +161,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 			// can specify a worker by workerId
 			// (proxy, workerId, serviceType, list, timeout)
-			"proxyById": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+			"proxyById": gopcp.ToSandboxFun(LogMid("proxyById", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				if len(args) < 1 {
 					return nil, getParamsError(args)
 				}
