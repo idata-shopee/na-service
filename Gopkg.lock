@@ -2,12 +2,28 @@
 
 
 [[projects]]
+  digest = "1:aacef5f5e45685f2aeda5534d0a750dee6859de7e9088cdd06192787bb01ae6d"
+  name = "github.com/go-errors/errors"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "a6af135bd4e28680facf08a3d206b454abc877a4"
+  version = "v1.0.1"
+
+[[projects]]
   branch = "master"
   digest = "1:562fc7c45fb24cd6519f945e4a9a626455c871853ad0cb009908cf4269f9375a"
   name = "github.com/lock-free/goaio"
   packages = ["."]
   pruneopts = "UT"
   revision = "9d53a70585c6663b54f9ce6dfbfce7259ad09e25"
+
+[[projects]]
+  branch = "master"
+  digest = "1:65264f842ddf245067a9c31e3b1e1d5bcd9e75e5b027ce168d979a5e0d85fd4a"
+  name = "github.com/lock-free/goklog"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "ee6028c56a50021f7683c0d721d4775459c7aeed"
 
 [[projects]]
   branch = "master"
@@ -43,11 +59,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:601a9dbcd1d5cca55b1cb15c30548ec049d22925cb4241febfc791c373e8d0f8"
+  digest = "1:1221fea0b28908013722f0a991746dd6ffe202a15bb21726483bce1cbb45695e"
   name = "github.com/lock-free/obrero"
   packages = ["."]
   pruneopts = "UT"
-  revision = "e999c9a6272d8ba39b42aa8013d81920607f5942"
+  revision = "4fc4951d5efa27ea5fcd0ccb9de32cc426f5d247"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -62,6 +78,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/lock-free/goaio",
+    "github.com/lock-free/goklog",
     "github.com/lock-free/gopcp",
     "github.com/lock-free/gopcp_rpc",
     "github.com/lock-free/gopcp_stream",

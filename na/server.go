@@ -4,17 +4,19 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lock-free/goaio"
+	"github.com/lock-free/goklog"
 	"github.com/lock-free/gopcp"
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
 	"github.com/satori/go.uuid"
-	"log"
 	"strconv"
 	"sync"
 	"time"
 )
 
 const GET_SERVICE_TYPE = "getServiceType"
+
+var klog = goklog.GetInstance()
 
 type WorkerConfig struct {
 	Timeout time.Duration
@@ -28,11 +30,14 @@ func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
 	return func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (ret interface{}, err error) {
 		t1 := time.Now().Unix()
 
-		log.Printf("[access-%s] args=%v\n", logPrefix, args)
+		klog.LogNormal(fmt.Sprintf("%s-access", logPrefix), fmt.Sprintf("args=%v", args))
 		ret, err = fn(args, attachment, pcpServer)
 
 		t2 := time.Now().Unix()
-		log.Printf("[complete-%s] args=%v, time=%d\n", logPrefix, args, t2-t1)
+		if err != nil {
+			klog.LogError(fmt.Sprintf("%s-error", logPrefix), err)
+		}
+		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%d", args, t2-t1))
 		return
 	}
 }
@@ -123,7 +128,7 @@ func ParseProxyStreamCallExp(args []interface{}) (string, string, []interface{},
 }
 
 func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.TcpServer, error) {
-	log.Println("try to start tcp server at " + strconv.Itoa(port))
+	klog.LogNormal("start-service", "try to start tcp server at "+strconv.Itoa(port))
 
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = GetWorkerLB()
@@ -152,6 +157,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				)
 			})),
 
+			// can specify a worker by workerId
 			// (proxy, workerId, serviceType, list, timeout)
 			"proxyById": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				if len(args) < 1 {
@@ -238,22 +244,24 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// on close of connection
 			func(err error) {
 				// remove worker when connection closed
-				log.Printf("connection broken, worker is %v\n", worker)
+				klog.LogNormal("connection-broken", fmt.Sprintf("worker is %v", worker))
 				workerLB.RemoveWorker(worker)
 			},
 
 			// new connection
 			func(PCHandler *gopcp_rpc.PCPConnectionHandler) {
-				log.Printf("new connection with id %s\n", worker.Id)
+				klog.LogNormal("connection-new", fmt.Sprintf("worker is %v", worker))
 				// new connection, ask for type.
 				if serviceTypeI, err := PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout); err != nil {
-					log.Printf("close connection with id %s\n", worker.Id)
+					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
 					PCHandler.Close()
 				} else if serviceType, ok := serviceTypeI.(string); !ok || serviceType == "" {
-					log.Printf("close connection with id %s\n", worker.Id)
+					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
 					PCHandler.Close()
 				} else {
-					log.Printf("new worker with id %s and type %s\n", worker.Id, serviceType)
+					// TODO if NA is in public network, need to auth connection
+					// TODO validate (serviceType, token) pair
+					klog.LogNormal("worker-new", fmt.Sprintf("worker is %v", worker))
 					worker.ServiceType = serviceType
 					worker.PCHandler = PCHandler
 
