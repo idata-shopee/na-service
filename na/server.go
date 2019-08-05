@@ -38,7 +38,7 @@ func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
 		}
 
 		t2 := time.Now().UnixNano()
-		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%d", args, (t2-t1)/int64(time.Millisecond)))
+		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%dms", args, (t2-t1)/int64(time.Millisecond)))
 		return
 	}
 }
