@@ -90,47 +90,6 @@ func ParseProxyCallExp(args []interface{}) (*ProxyExp, error) {
 	return &proxyExp, nil
 }
 
-func ParseProxyStreamCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
-	var (
-		serviceType string
-		list        []interface{}
-		params      []interface{}
-		funName     string
-		timeout     float64
-		ok          bool = true
-	)
-
-	if len(args) < 3 {
-		ok = false
-	}
-
-	if ok {
-		serviceType, ok = args[0].(string)
-	}
-
-	if ok {
-		list, ok = args[1].([]interface{})
-	}
-
-	if ok {
-		params, ok = list[0].([]interface{})
-	}
-
-	if ok {
-		funName, ok = params[0].(string)
-	}
-
-	if ok {
-		timeout, ok = args[2].(float64)
-	}
-
-	if !ok {
-		return "", "", nil, time.Duration(int(0)) * time.Second, getParamsError(args)
-	}
-
-	return serviceType, funName, params[1:], time.Duration(int(timeout)) * time.Second, nil
-}
-
 func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.TcpServer, error) {
 	klog.LogNormal("start-service", "try to start tcp server at "+strconv.Itoa(port))
 
@@ -200,33 +159,33 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				attachment interface{},
 				pcpServer *gopcp.PcpServer,
 			) (interface{}, error) {
-				serviceType, funName, params, timeoutDuration, err := ParseProxyStreamCallExp(args)
+				proxyExp, err := ParseProxyCallExp(args)
 
 				if err != nil {
 					return nil, err
 				}
 
 				// choose worker
-				worker, ok := workerLB.PickUpWorker(serviceType)
+				worker, ok := workerLB.PickUpWorker(proxyExp.ServiceType)
 				if !ok {
 					// missing worker
-					return nil, errors.New("missing worker for service type " + serviceType)
+					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
 				}
 
 				// pipe stream
-				sparams, err := worker.PCHandler.StreamClient.ParamsToStreamParams(append(params, func(t int, d interface{}) {
+				sparams, err := worker.PCHandler.StreamClient.ParamsToStreamParams(append(proxyExp.Params, func(t int, d interface{}) {
 					// write response of stream back to client
 					switch t {
 					case gopcp_stream.STREAM_DATA:
-						streamProducer.SendData(d, timeoutDuration)
+						streamProducer.SendData(d, proxyExp.Timeout)
 					case gopcp_stream.STREAM_END:
-						streamProducer.SendEnd(timeoutDuration)
+						streamProducer.SendEnd(proxyExp.Timeout)
 					default:
 						errMsg, ok := d.(string)
 						if !ok {
-							streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), timeoutDuration)
+							streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), proxyExp.Timeout)
 						} else {
-							streamProducer.SendError(errMsg, timeoutDuration)
+							streamProducer.SendError(errMsg, proxyExp.Timeout)
 						}
 					}
 				}))
@@ -236,7 +195,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				// send a stream request to service
-				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{funName}, sparams...)}, timeoutDuration)
+				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
 			}),
 			// TODO get workers information
 		})

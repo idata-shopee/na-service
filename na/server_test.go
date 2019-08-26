@@ -6,7 +6,6 @@ import (
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
 	"github.com/lock-free/obrero"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -25,21 +24,6 @@ func TestParseProxyCallExp(t *testing.T) {
 func TestParseProxyCallExpError(t *testing.T) {
 	_, err := ParseProxyCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
 	assertEqual(t, err != nil, true, "")
-}
-
-func TestParseProxyStreamCallExp(t *testing.T) {
-	st, fn, ps, to, err := ParseProxyStreamCallExp([]interface{}{"user-service", []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, st, "user-service", "")
-	assertEqual(t, fn, "getUser", "")
-	assertEqual(t, len(ps), 1, "")
-	assertEqual(t, ps[0], "test", "")
-	assertEqual(t, err, nil, "")
-	assertEqual(t, to, time.Duration(120)*time.Second, "")
-}
-
-func TestParseProxyStreamCallExpError(t *testing.T) {
-	_, _, _, _, err := ParseProxyStreamCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, strings.Index(err.Error(), "unexpect args in calling") != -1, true, "")
 }
 
 func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callResult gopcp.CallResult, expect interface{}) {
