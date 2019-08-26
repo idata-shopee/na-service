@@ -8,6 +8,7 @@ import (
 	"github.com/lock-free/gopcp"
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
+	"github.com/lock-free/obrero"
 	"github.com/satori/go.uuid"
 	"strconv"
 	"sync"
@@ -43,48 +44,50 @@ func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
 	}
 }
 
-// (proxy, serviceType, list, timeout)
-func ParseProxyCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
+type ProxyExp struct {
+	ServiceType string
+	FunName     string
+	Params      []interface{}
+	Timeout     time.Duration
+}
+
+// args = (proxy, serviceType, list, timeout)
+// list = [params]
+// params = [funName, ...ps]
+func ParseProxyCallExp(args []interface{}) (*ProxyExp, error) {
 	var (
 		serviceType string
 		list        []interface{}
-		params      []interface{}
-		funName     string
-		timeout     float64
-		ok          bool = true
+		timeout     int
 	)
 
-	if len(args) < 3 {
-		ok = false
+	err := obrero.ParseArgs(args, []interface{}{&serviceType, &list, &timeout}, "wrong signature, expect (proxy, serviceType: string, list: []Any, timeout: int)")
+
+	if err != nil {
+		return nil, err
 	}
 
-	if ok {
-		serviceType, ok = args[0].(string)
+	var proxyExp = ProxyExp{
+		ServiceType: serviceType,
+		Timeout:     time.Duration(timeout) * time.Second,
 	}
 
-	if ok {
-		list, ok = args[1].([]interface{})
-	}
-
-	if ok {
-		params, ok = list[0].([]interface{})
-	}
-
-	if ok {
-		funName, ok = params[0].(string)
-	}
-
-	if ok {
-		timeout, ok = args[2].(float64)
-	}
-
+	params, ok := list[0].([]interface{})
 	if !ok {
-		return serviceType, funName, nil, time.Duration(int(0)) * time.Second, getParamsError(args)
+		return nil, errors.New("params expected be an array [funName, ...args].")
+	}
+	if len(params) == 0 {
+		return nil, errors.New("params expected be an array [funName, ...args].")
+	}
+	funName, ok := params[0].(string)
+	if !ok {
+		return nil, errors.New("funName expected be an string.")
 	}
 
-	timeoutDuration := time.Duration(int(timeout)) * time.Second
+	proxyExp.FunName = funName
+	proxyExp.Params = params[1:]
 
-	return serviceType, funName, params[1:], timeoutDuration, nil
+	return &proxyExp, nil
 }
 
 func ParseProxyStreamCallExp(args []interface{}) (string, string, []interface{}, time.Duration, error) {
@@ -139,7 +142,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
 			"proxy": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args)
+				proxyExp, err := ParseProxyCallExp(args)
 
 				if err != nil {
 					return nil, err
@@ -147,15 +150,15 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 				// choose worker
 				// TODO add more information to worker, like deployment location which can used to debug live error
-				worker, ok := workerLB.PickUpWorker(serviceType)
+				worker, ok := workerLB.PickUpWorker(proxyExp.ServiceType)
 				if !ok {
 					// missing worker
-					return nil, errors.New("missing worker for service type " + serviceType)
+					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
 				}
 
 				return worker.PCHandler.Call(
-					gopcp.CallResult{append([]interface{}{funName}, params...)},
-					timeoutDuration,
+					gopcp.CallResult{append([]interface{}{proxyExp.FunName}, proxyExp.Params...)},
+					proxyExp.Timeout,
 				)
 			})),
 
@@ -170,22 +173,22 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 					return nil, getParamsError(args)
 				}
 
-				serviceType, funName, params, timeoutDuration, err := ParseProxyCallExp(args[1:])
+				proxyExp, err := ParseProxyCallExp(args[1:])
 
 				if err != nil {
 					return nil, err
 				}
 
 				// choose worker
-				worker, ok := workerLB.PickUpWorkerById(workerId, serviceType)
+				worker, ok := workerLB.PickUpWorkerById(workerId, proxyExp.ServiceType)
 				if !ok {
 					// missing worker
-					return nil, errors.New("missing worker for service type " + serviceType)
+					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
 				}
 
 				return worker.PCHandler.Call(
-					gopcp.CallResult{append([]interface{}{funName}, params...)},
-					timeoutDuration,
+					gopcp.CallResult{append([]interface{}{proxyExp.FunName}, proxyExp.Params...)},
+					proxyExp.Timeout,
 				)
 			})),
 

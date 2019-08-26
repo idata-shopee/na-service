@@ -59,11 +59,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:1221fea0b28908013722f0a991746dd6ffe202a15bb21726483bce1cbb45695e"
+  digest = "1:c15270d07a737e2f848993cba1055552ae54af45166a9bb7d361ed971a118214"
   name = "github.com/lock-free/obrero"
   packages = ["."]
   pruneopts = "UT"
-  revision = "4fc4951d5efa27ea5fcd0ccb9de32cc426f5d247"
+  revision = "01be798498249ef4d7baa023069f7469d2eed071"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
