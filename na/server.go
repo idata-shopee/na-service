@@ -197,7 +197,6 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				// send a stream request to service
 				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
 			}),
-			// TODO get workers information
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker Worker
