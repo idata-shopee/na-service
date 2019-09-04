@@ -9,6 +9,7 @@ import (
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
 	"github.com/lock-free/obrero"
+	"github.com/lock-free/obrero/utils"
 	"github.com/satori/go.uuid"
 	"strconv"
 	"sync"
@@ -72,22 +73,31 @@ func ParseProxyCallExp(args []interface{}) (*ProxyExp, error) {
 		Timeout:     time.Duration(timeout) * time.Second,
 	}
 
-	params, ok := list[0].([]interface{})
-	if !ok {
-		return nil, errors.New("params expected be an array [funName, ...args].")
-	}
-	if len(params) == 0 {
-		return nil, errors.New("params expected be an array [funName, ...args].")
-	}
-	funName, ok := params[0].(string)
-	if !ok {
-		return nil, errors.New("funName expected be an string.")
+	funName, ps, err := ParseParams(list)
+	if err != nil {
+		return nil, err
 	}
 
 	proxyExp.FunName = funName
-	proxyExp.Params = params[1:]
+	proxyExp.Params = ps
 
 	return &proxyExp, nil
+}
+
+// (funName, params)
+func ParseParams(list []interface{}) (string, []interface{}, error) {
+	params, ok := list[0].([]interface{})
+	if !ok {
+		return "", nil, errors.New("params expected be an array [funName, ...args].")
+	}
+	if len(params) == 0 {
+		return "", nil, errors.New("params expected be an array [funName, ...args].")
+	}
+	funName, ok := params[0].(string)
+	if !ok {
+		return "", nil, errors.New("funName expected be an string.")
+	}
+	return funName, params[1:], nil
 }
 
 func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.TcpServer, error) {
@@ -97,6 +107,8 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 	var workerLB = GetWorkerLB()
 
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
+		var callQueueMap = utils.GetCallQueueMap(utils.CALL_QUEUE_DEF_EXECUTOR)
+
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
@@ -197,6 +209,26 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				// send a stream request to service
 				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
 			}),
+
+			// (queue, key, list)
+			// eg: (queue, "abc", (+, a, b))
+			"queue": gopcp.ToLazySandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				var (
+					key string
+					exp interface{}
+				)
+
+				err := obrero.ParseArgs(args, []interface{}{&key, &exp}, "wrong signature, expect (queue, key: string, exp: interface{})")
+
+				if err != nil {
+					return nil, err
+				}
+
+				// add task to queue
+				return callQueueMap.Enqueue(key, func() (interface{}, error) {
+					return pcpServer.ExecuteAst(exp, attachment)
+				})
+			})),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker Worker
