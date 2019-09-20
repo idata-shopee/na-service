@@ -25,65 +25,6 @@ type WorkerConfig struct {
 	Timeout time.Duration
 }
 
-func getParamsError(args []interface{}) error {
-	return fmt.Errorf(`unexpect args in calling, args are %v`, args)
-}
-
-type ProxyExp struct {
-	ServiceType string
-	FunName     string
-	Params      []interface{}
-	Timeout     time.Duration
-}
-
-// args = (proxy, serviceType, list, timeout)
-// list = [params]
-// params = [funName, ...ps]
-func ParseProxyCallExp(args []interface{}) (*ProxyExp, error) {
-	var (
-		serviceType string
-		list        []interface{}
-		timeout     int
-	)
-
-	err := utils.ParseArgs(args, []interface{}{&serviceType, &list, &timeout}, "wrong signature, expect (proxy, serviceType: string, list: []Any, timeout: int)")
-
-	if err != nil {
-		return nil, err
-	}
-
-	var proxyExp = ProxyExp{
-		ServiceType: serviceType,
-		Timeout:     time.Duration(timeout) * time.Second,
-	}
-
-	funName, ps, err := ParseParams(list)
-	if err != nil {
-		return nil, err
-	}
-
-	proxyExp.FunName = funName
-	proxyExp.Params = ps
-
-	return &proxyExp, nil
-}
-
-// (funName, params)
-func ParseParams(list []interface{}) (string, []interface{}, error) {
-	params, ok := list[0].([]interface{})
-	if !ok {
-		return "", nil, errors.New("params expected be an array [funName, ...args].")
-	}
-	if len(params) == 0 {
-		return "", nil, errors.New("params expected be an array [funName, ...args].")
-	}
-	funName, ok := params[0].(string)
-	if !ok {
-		return "", nil, errors.New("funName expected be an string.")
-	}
-	return funName, params[1:], nil
-}
-
 func GetWorkerHandler(workerLB *dlb.WorkerLB, serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
 	// choose worker
 	worker, ok := workerLB.PickUpWorkerRandom(serviceType)
@@ -108,68 +49,89 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
-			// (proxy, serviceType, list, timeout)
-			"proxy": gopcp.ToSandboxFun(mids.LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				proxyExp, err := ParseProxyCallExp(args)
-
-				if err != nil {
-					return nil, err
-				}
-
-				handle, err := GetWorkerHandler(workerLB, proxyExp.ServiceType)
-				if err != nil {
-					return nil, err
-				}
-				return handle.Call(
-					gopcp.CallResult{append([]interface{}{proxyExp.FunName}, proxyExp.Params...)},
-					proxyExp.Timeout,
+			// (proxy, serviceType, exp, timeout)
+			"proxy": gopcp.ToLazySandboxFun(mids.LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				var (
+					serviceType string
+					exp         interface{}
+					timeout     int
 				)
+
+				err := utils.ParseArgs(args, []interface{}{&serviceType, &exp, &timeout}, "wrong signature, expect (proxy, serviceType: string, exp, timeout: int)")
+				exp = args[1]
+
+				if err != nil {
+					return nil, err
+				}
+
+				handle, err := GetWorkerHandler(workerLB, serviceType)
+				if err != nil {
+					return nil, err
+				}
+
+				bs, err := gopcp.JSONMarshal(gopcp.ParseAstToJsonObject(exp))
+				if err != nil {
+					return nil, err
+				}
+
+				return handle.CallRemote(string(bs), time.Duration(timeout)*time.Second)
 			})),
 
 			// proxy pcp stream call
-			// (proxyStream, serviceType, funName, ...params)
-			"proxyStream": streamServer.StreamApi(func(
-				streamProducer gopcp_stream.StreamProducer,
-				args []interface{},
-				attachment interface{},
-				pcpServer *gopcp.PcpServer,
-			) (interface{}, error) {
-				proxyExp, err := ParseProxyCallExp(args)
+			// (proxyStream, serviceType, exp, timeout)
+			"proxyStream": streamServer.LazyStreamApi(func(streamProducer gopcp_stream.StreamProducer, args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				var (
+					serviceType string
+					exp         interface{}
+					timeout     int
+				)
+
+				err := utils.ParseArgs(args, []interface{}{&serviceType, &exp, &timeout}, "wrong signature, expect (proxy, serviceType: string, exp, timeout: int)")
+				exp = args[1]
 
 				if err != nil {
 					return nil, err
 				}
 
-				// choose worker
-				handle, err := GetWorkerHandler(workerLB, proxyExp.ServiceType)
-				if err != nil {
-					return nil, err
-				}
+				var timeoutD = time.Duration(timeout) * time.Second
 
-				// pipe stream
-				sparams, err := handle.StreamClient.ParamsToStreamParams(append(proxyExp.Params, func(t int, d interface{}) {
-					// write response of stream back to client
-					switch t {
-					case gopcp_stream.STREAM_DATA:
-						streamProducer.SendData(d, proxyExp.Timeout)
-					case gopcp_stream.STREAM_END:
-						streamProducer.SendEnd(proxyExp.Timeout)
-					default:
-						errMsg, ok := d.(string)
-						if !ok {
-							streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), proxyExp.Timeout)
-						} else {
-							streamProducer.SendError(errMsg, proxyExp.Timeout)
-						}
+				jsonObj := gopcp.ParseAstToJsonObject(exp)
+
+				switch arr := jsonObj.(type) {
+				case []interface{}:
+					// choose worker
+					handle, err := GetWorkerHandler(workerLB, serviceType)
+					if err != nil {
+						return nil, err
 					}
-				}))
 
-				if err != nil {
-					return nil, err
+					// pipe stream
+					sparams, err := handle.StreamClient.ParamsToStreamParams(append(arr[1:], func(t int, d interface{}) {
+						// write response of stream back to client
+						switch t {
+						case gopcp_stream.STREAM_DATA:
+							streamProducer.SendData(d, timeoutD)
+						case gopcp_stream.STREAM_END:
+							streamProducer.SendEnd(timeoutD)
+						default:
+							errMsg, ok := d.(string)
+							if !ok {
+								streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), timeoutD)
+							} else {
+								streamProducer.SendError(errMsg, timeoutD)
+							}
+						}
+					}))
+
+					if err != nil {
+						return nil, err
+					}
+
+					// send a stream request to service
+					return handle.Call(gopcp.CallResult{append([]interface{}{arr[0]}, sparams...)}, timeoutD)
+				default:
+					return nil, fmt.Errorf("Expect array, but got %v, args=%v", jsonObj, args)
 				}
-
-				// send a stream request to service
-				return handle.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
 			}),
 
 			// (queue, key, list)

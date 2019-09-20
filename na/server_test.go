@@ -12,21 +12,6 @@ import (
 	"time"
 )
 
-func TestParseProxyCallExp(t *testing.T) {
-	proxyExp, err := ParseProxyCallExp([]interface{}{"user-service", []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	utils.AssertEqual(t, proxyExp.ServiceType, "user-service", "")
-	utils.AssertEqual(t, proxyExp.FunName, "getUser", "")
-	utils.AssertEqual(t, len(proxyExp.Params), 1, "")
-	utils.AssertEqual(t, proxyExp.Params[0], "test", "")
-	utils.AssertEqual(t, err, nil, "")
-	utils.AssertEqual(t, proxyExp.Timeout, time.Duration(120)*time.Second, "")
-}
-
-func TestParseProxyCallExpError(t *testing.T) {
-	_, err := ParseProxyCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	utils.AssertEqual(t, err != nil, true, "")
-}
-
 func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callResult gopcp.CallResult, expect interface{}) {
 	// start server
 	server, err := StartNoneBlockingTcpServer(0, WorkerConfig{time.Duration(120) * time.Second})
