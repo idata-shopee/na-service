@@ -6,6 +6,7 @@ import (
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
 	"github.com/lock-free/obrero"
+	"github.com/lock-free/obrero/utils"
 	"sync"
 	"testing"
 	"time"
@@ -13,17 +14,17 @@ import (
 
 func TestParseProxyCallExp(t *testing.T) {
 	proxyExp, err := ParseProxyCallExp([]interface{}{"user-service", []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, proxyExp.ServiceType, "user-service", "")
-	assertEqual(t, proxyExp.FunName, "getUser", "")
-	assertEqual(t, len(proxyExp.Params), 1, "")
-	assertEqual(t, proxyExp.Params[0], "test", "")
-	assertEqual(t, err, nil, "")
-	assertEqual(t, proxyExp.Timeout, time.Duration(120)*time.Second, "")
+	utils.AssertEqual(t, proxyExp.ServiceType, "user-service", "")
+	utils.AssertEqual(t, proxyExp.FunName, "getUser", "")
+	utils.AssertEqual(t, len(proxyExp.Params), 1, "")
+	utils.AssertEqual(t, proxyExp.Params[0], "test", "")
+	utils.AssertEqual(t, err, nil, "")
+	utils.AssertEqual(t, proxyExp.Timeout, time.Duration(120)*time.Second, "")
 }
 
 func TestParseProxyCallExpError(t *testing.T) {
 	_, err := ParseProxyCallExp([]interface{}{123, []interface{}{[]interface{}{"getUser", "test"}}, 120.0})
-	assertEqual(t, err != nil, true, "")
+	utils.AssertEqual(t, err != nil, true, "")
 }
 
 func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callResult gopcp.CallResult, expect interface{}) {
@@ -65,7 +66,7 @@ func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callR
 			t.Fatal(err.Error())
 		}
 
-		assertEqual(t, expect, v, "")
+		utils.AssertEqual(t, expect, v, "")
 	}
 }
 
@@ -228,7 +229,7 @@ func TestServerStream(t *testing.T) {
 		if ty == gopcp_stream.STREAM_DATA {
 			txt += d.(string)
 		} else if ty == gopcp_stream.STREAM_END {
-			assertEqual(t, txt, "abc", "")
+			utils.AssertEqual(t, txt, "abc", "")
 			wg.Done()
 		}
 	}, time.Duration(120)*time.Second)
@@ -319,7 +320,7 @@ func TestServerStreamSlice(t *testing.T) {
 		if ty == gopcp_stream.STREAM_DATA {
 			txt += d.(string)
 		} else if ty == gopcp_stream.STREAM_END {
-			assertEqual(t, txt, "abc", "")
+			utils.AssertEqual(t, txt, "abc", "")
 			wg.Done()
 		}
 	}, time.Duration(120)*time.Second)

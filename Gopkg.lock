@@ -59,14 +59,19 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:4a18d0d41c776e1a12d8319590c086971d8d5884a9c6d34a7e3dc386217595ad"
+  digest = "1:741621a0aacb35d53b88b1f2bd1fe6e1a3c2707b9ea9402336d2042dc03ee412"
   name = "github.com/lock-free/obrero"
   packages = [
     ".",
+    "box/cqbox",
+    "mids",
+    "napool",
     "utils",
+    "utils/cq",
+    "utils/dlb",
   ]
   pruneopts = "UT"
-  revision = "af16cbd5543a39cfc99a6d92d6b7ef90146e9f34"
+  revision = "35d63201958ee7086cdd7b2c20802e6429ca5312"
 
 [[projects]]
   digest = "1:274f67cb6fed9588ea2521ecdac05a6d62a8c51c074c1fccc6a49a40ba80e925"
@@ -86,7 +91,10 @@
     "github.com/lock-free/gopcp_rpc",
     "github.com/lock-free/gopcp_stream",
     "github.com/lock-free/obrero",
+    "github.com/lock-free/obrero/box/cqbox",
+    "github.com/lock-free/obrero/mids",
     "github.com/lock-free/obrero/utils",
+    "github.com/lock-free/obrero/utils/dlb",
     "github.com/satori/go.uuid",
   ]
   solver-name = "gps-cdcl"

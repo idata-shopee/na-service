@@ -8,11 +8,12 @@ import (
 	"github.com/lock-free/gopcp"
 	"github.com/lock-free/gopcp_rpc"
 	"github.com/lock-free/gopcp_stream"
-	"github.com/lock-free/obrero"
+	"github.com/lock-free/obrero/box/cqbox"
+	"github.com/lock-free/obrero/mids"
 	"github.com/lock-free/obrero/utils"
+	"github.com/lock-free/obrero/utils/dlb"
 	"github.com/satori/go.uuid"
 	"strconv"
-	"sync"
 	"time"
 )
 
@@ -26,23 +27,6 @@ type WorkerConfig struct {
 
 func getParamsError(args []interface{}) error {
 	return fmt.Errorf(`unexpect args in calling, args are %v`, args)
-}
-
-func LogMid(logPrefix string, fn gopcp.GeneralFun) gopcp.GeneralFun {
-	return func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (ret interface{}, err error) {
-		t1 := time.Now().UnixNano()
-
-		klog.LogNormal(fmt.Sprintf("%s-access", logPrefix), fmt.Sprintf("args=%v", args))
-		ret, err = fn(args, attachment, pcpServer)
-
-		if err != nil {
-			klog.LogError(fmt.Sprintf("%s-error", logPrefix), err)
-		}
-
-		t2 := time.Now().UnixNano()
-		klog.LogNormal(fmt.Sprintf("%s-done", logPrefix), fmt.Sprintf("args=%v, time=%dms", args, (t2-t1)/int64(time.Millisecond)))
-		return
-	}
 }
 
 type ProxyExp struct {
@@ -62,7 +46,7 @@ func ParseProxyCallExp(args []interface{}) (*ProxyExp, error) {
 		timeout     int
 	)
 
-	err := obrero.ParseArgs(args, []interface{}{&serviceType, &list, &timeout}, "wrong signature, expect (proxy, serviceType: string, list: []Any, timeout: int)")
+	err := utils.ParseArgs(args, []interface{}{&serviceType, &list, &timeout}, "wrong signature, expect (proxy, serviceType: string, list: []Any, timeout: int)")
 
 	if err != nil {
 		return nil, err
@@ -100,64 +84,43 @@ func ParseParams(list []interface{}) (string, []interface{}, error) {
 	return funName, params[1:], nil
 }
 
+func GetWorkerHandler(workerLB *dlb.WorkerLB, serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
+	// choose worker
+	worker, ok := workerLB.PickUpWorkerRandom(serviceType)
+	if !ok {
+		// missing worker
+		return nil, errors.New("missing worker for service type " + serviceType)
+	}
+	handle, ok := worker.Handle.(*gopcp_rpc.PCPConnectionHandler)
+	if !ok {
+		return nil, errors.New("unexpect type error, expect *gopcp.PCPConnectionHandler for Handle of worker")
+	}
+	return handle, nil
+}
+
 func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.TcpServer, error) {
 	klog.LogNormal("start-service", "try to start tcp server at "+strconv.Itoa(port))
 
 	// {type: {id: PcpConnectionHandler}}
-	var workerLB = GetWorkerLB()
+	var workerLB = dlb.GetWorkerLB()
+	var callQueueBox = cqbox.GetCallQueueBox()
 
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
-		var callQueueMap = utils.GetCallQueueMap(utils.CALL_QUEUE_DEF_EXECUTOR)
-
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, list, timeout)
-			"proxy": gopcp.ToSandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+			"proxy": gopcp.ToSandboxFun(mids.LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				proxyExp, err := ParseProxyCallExp(args)
 
 				if err != nil {
 					return nil, err
 				}
 
-				// choose worker
-				// TODO add more information to worker, like deployment location which can used to debug live error
-				worker, ok := workerLB.PickUpWorker(proxyExp.ServiceType)
-				if !ok {
-					// missing worker
-					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
-				}
-
-				return worker.PCHandler.Call(
-					gopcp.CallResult{append([]interface{}{proxyExp.FunName}, proxyExp.Params...)},
-					proxyExp.Timeout,
-				)
-			})),
-
-			// can specify a worker by workerId
-			// (proxy, workerId, serviceType, list, timeout)
-			"proxyById": gopcp.ToSandboxFun(LogMid("proxyById", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				if len(args) < 1 {
-					return nil, getParamsError(args)
-				}
-				workerId, ok := args[0].(string)
-				if !ok {
-					return nil, getParamsError(args)
-				}
-
-				proxyExp, err := ParseProxyCallExp(args[1:])
-
+				handle, err := GetWorkerHandler(workerLB, proxyExp.ServiceType)
 				if err != nil {
 					return nil, err
 				}
-
-				// choose worker
-				worker, ok := workerLB.PickUpWorkerById(workerId, proxyExp.ServiceType)
-				if !ok {
-					// missing worker
-					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
-				}
-
-				return worker.PCHandler.Call(
+				return handle.Call(
 					gopcp.CallResult{append([]interface{}{proxyExp.FunName}, proxyExp.Params...)},
 					proxyExp.Timeout,
 				)
@@ -178,14 +141,13 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				// choose worker
-				worker, ok := workerLB.PickUpWorker(proxyExp.ServiceType)
-				if !ok {
-					// missing worker
-					return nil, errors.New("missing worker for service type " + proxyExp.ServiceType)
+				handle, err := GetWorkerHandler(workerLB, proxyExp.ServiceType)
+				if err != nil {
+					return nil, err
 				}
 
 				// pipe stream
-				sparams, err := worker.PCHandler.StreamClient.ParamsToStreamParams(append(proxyExp.Params, func(t int, d interface{}) {
+				sparams, err := handle.StreamClient.ParamsToStreamParams(append(proxyExp.Params, func(t int, d interface{}) {
 					// write response of stream back to client
 					switch t {
 					case gopcp_stream.STREAM_DATA:
@@ -207,31 +169,15 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				// send a stream request to service
-				return worker.PCHandler.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
+				return handle.Call(gopcp.CallResult{append([]interface{}{proxyExp.FunName}, sparams...)}, proxyExp.Timeout)
 			}),
 
 			// (queue, key, list)
 			// eg: (queue, "abc", (+, a, b))
-			"queue": gopcp.ToLazySandboxFun(LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				var (
-					key string
-					exp interface{}
-				)
-
-				err := obrero.ParseArgs(args, []interface{}{&key, &exp}, "wrong signature, expect (queue, key: string, exp: interface{})")
-
-				if err != nil {
-					return nil, err
-				}
-
-				// add task to queue
-				return callQueueMap.Enqueue(key, func() (interface{}, error) {
-					return pcpServer.ExecuteAst(exp, attachment)
-				})
-			})),
+			"queue": gopcp.ToLazySandboxFun(mids.LogMid("proxy", callQueueBox.CallQueueBoxFn)),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
-		var worker Worker
+		var worker dlb.Worker
 		// generate id for this connection
 		worker.Id = uuid.NewV4().String()
 
@@ -257,8 +203,8 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 					// TODO if NA is in public network, need to auth connection
 					// TODO validate (serviceType, token) pair
 					klog.LogNormal("worker-new", fmt.Sprintf("worker is %v", worker))
-					worker.ServiceType = serviceType
-					worker.PCHandler = PCHandler
+					worker.Group = serviceType
+					worker.Handle = PCHandler
 
 					workerLB.AddWorker(worker)
 				}
@@ -280,9 +226,7 @@ func StartTcpServer(port int, workerConfig WorkerConfig) error {
 	defer server.Close()
 
 	// blocking forever
-	var wg sync.WaitGroup
-	wg.Add(1)
-	wg.Wait()
+	utils.RunForever()
 
 	return nil
 }
