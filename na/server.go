@@ -45,37 +45,15 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = dlb.GetWorkerLB()
 	var callQueueBox = cqbox.GetCallQueueBox()
+	var proxyMid = mids.GetProxyMid(func(serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
+		return GetWorkerHandler(workerLB, serviceType)
+	})
 
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			// proxy pcp call
 			// (proxy, serviceType, exp, timeout)
-			"proxy": gopcp.ToLazySandboxFun(mids.LogMid("proxy", func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				var (
-					serviceType string
-					exp         interface{}
-					timeout     int
-				)
-
-				err := utils.ParseArgs(args, []interface{}{&serviceType, &exp, &timeout}, "wrong signature, expect (proxy, serviceType: string, exp, timeout: int)")
-				exp = args[1]
-
-				if err != nil {
-					return nil, err
-				}
-
-				handle, err := GetWorkerHandler(workerLB, serviceType)
-				if err != nil {
-					return nil, err
-				}
-
-				bs, err := gopcp.JSONMarshal(gopcp.ParseAstToJsonObject(exp))
-				if err != nil {
-					return nil, err
-				}
-
-				return handle.CallRemote(string(bs), time.Duration(timeout)*time.Second)
-			})),
+			"proxy": gopcp.ToLazySandboxFun(mids.LogMid("proxy", proxyMid.Proxy)),
 
 			// proxy pcp stream call
 			// (proxyStream, serviceType, exp, timeout)
