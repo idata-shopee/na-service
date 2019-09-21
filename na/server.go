@@ -57,60 +57,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 			// proxy pcp stream call
 			// (proxyStream, serviceType, exp, timeout)
-			"proxyStream": streamServer.LazyStreamApi(func(streamProducer gopcp_stream.StreamProducer, args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
-				var (
-					serviceType string
-					exp         interface{}
-					timeout     int
-				)
-
-				err := utils.ParseArgs(args, []interface{}{&serviceType, &exp, &timeout}, "wrong signature, expect (proxy, serviceType: string, exp, timeout: int)")
-				exp = args[1]
-
-				if err != nil {
-					return nil, err
-				}
-
-				var timeoutD = time.Duration(timeout) * time.Second
-
-				jsonObj := gopcp.ParseAstToJsonObject(exp)
-
-				switch arr := jsonObj.(type) {
-				case []interface{}:
-					// choose worker
-					handle, err := GetWorkerHandler(workerLB, serviceType)
-					if err != nil {
-						return nil, err
-					}
-
-					// pipe stream
-					sparams, err := handle.StreamClient.ParamsToStreamParams(append(arr[1:], func(t int, d interface{}) {
-						// write response of stream back to client
-						switch t {
-						case gopcp_stream.STREAM_DATA:
-							streamProducer.SendData(d, timeoutD)
-						case gopcp_stream.STREAM_END:
-							streamProducer.SendEnd(timeoutD)
-						default:
-							errMsg, ok := d.(string)
-							if !ok {
-								streamProducer.SendError(fmt.Sprintf("errored at stream, and responsed error message is not string. d=%v", d), timeoutD)
-							} else {
-								streamProducer.SendError(errMsg, timeoutD)
-							}
-						}
-					}))
-
-					if err != nil {
-						return nil, err
-					}
-
-					// send a stream request to service
-					return handle.Call(gopcp.CallResult{append([]interface{}{arr[0]}, sparams...)}, timeoutD)
-				default:
-					return nil, fmt.Errorf("Expect array, but got %v, args=%v", jsonObj, args)
-				}
-			}),
+			"proxyStream": streamServer.LazyStreamApi(proxyMid.ProxyStream),
 
 			// (queue, key, list)
 			// eg: (queue, "abc", (+, a, b))
