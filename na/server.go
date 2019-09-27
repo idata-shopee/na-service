@@ -61,7 +61,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 			// (queue, key, list)
 			// eg: (queue, "abc", (+, a, b))
-			"queue": gopcp.ToLazySandboxFun(mids.LogMid("proxy", callQueueBox.CallQueueBoxFn)),
+			"queue": gopcp.ToLazySandboxFun(mids.LogMid("queue", callQueueBox.CallQueueBoxFn)),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker dlb.Worker
