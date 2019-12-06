@@ -12,13 +12,13 @@ import (
 	"github.com/lock-free/obrero/mids"
 	"github.com/lock-free/obrero/utils"
 	"github.com/lock-free/obrero/utils/dlb"
-	"github.com/satori/go.uuid"
 	"strconv"
 	"time"
 )
 
 const (
-	GET_SERVICE_TYPE = "getServiceType"
+	GET_SERVICE_TYPE     = "getServiceType"
+	GET_SERVICE_STATE_ID = "getServiceStateId"
 )
 
 var klog = goklog.GetInstance()
@@ -67,8 +67,6 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker dlb.Worker
-		// generate id for this connection
-		worker.Id = uuid.NewV4().String()
 
 		return &gopcp_rpc.ConnectionEvent{
 			// on close of connection
@@ -80,20 +78,47 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 			// new connection
 			func(PCHandler *gopcp_rpc.PCPConnectionHandler) {
+				var (
+					err          error
+					ok           bool
+					sidI         interface{}
+					serviceTypeI interface{}
+					sid          string
+					serviceType  string
+				)
 				klog.LogNormal("connection-new", fmt.Sprintf("worker is %v", worker))
-				// ask for service type
-				serviceTypeI, err := PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout)
+
+				defer func() {
+					if err != nil {
+						klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
+						PCHandler.Close()
+					}
+				}()
+
+				// ask for service state id
+				sidI, err = PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_STATE_ID), workerConfig.Timeout)
 				if err != nil {
-					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
-					PCHandler.Close()
 					return
 				}
-				serviceType, ok := serviceTypeI.(string)
+				sid, ok = sidI.(string)
+				if !ok || sid == "" {
+					err = fmt.Errorf("unexpected state id %v", sidI)
+					return
+				}
+
+				worker.Id = sid
+
+				// ask for service type
+				serviceTypeI, err = PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout)
+				if err != nil {
+					return
+				}
+				serviceType, ok = serviceTypeI.(string)
 				if !ok || serviceType == "" {
-					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
-					PCHandler.Close()
+					err = fmt.Errorf("unexpected service type %v", serviceTypeI)
 					return
 				}
+
 				// TODO if NA is in public network, need to auth connection
 				// TODO validate (serviceType, token) pair
 				klog.LogNormal("worker-new", fmt.Sprintf("worker is %v", worker))
