@@ -17,7 +17,9 @@ import (
 	"time"
 )
 
-const GET_SERVICE_TYPE = "getServiceType"
+const (
+	GET_SERVICE_TYPE = "getServiceType"
+)
 
 var klog = goklog.GetInstance()
 
@@ -47,7 +49,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 	var callQueueBox = cqbox.GetCallQueueBox()
 	var proxyMid = mids.GetProxyMid(func(serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
 		return GetWorkerHandler(workerLB, serviceType)
-	})
+	}, mids.DefaultGetCommand)
 
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
@@ -79,22 +81,26 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// new connection
 			func(PCHandler *gopcp_rpc.PCPConnectionHandler) {
 				klog.LogNormal("connection-new", fmt.Sprintf("worker is %v", worker))
-				// new connection, ask for type.
-				if serviceTypeI, err := PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout); err != nil {
+				// ask for service type
+				serviceTypeI, err := PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout)
+				if err != nil {
 					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
 					PCHandler.Close()
-				} else if serviceType, ok := serviceTypeI.(string); !ok || serviceType == "" {
-					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
-					PCHandler.Close()
-				} else {
-					// TODO if NA is in public network, need to auth connection
-					// TODO validate (serviceType, token) pair
-					klog.LogNormal("worker-new", fmt.Sprintf("worker is %v", worker))
-					worker.Group = serviceType
-					worker.Handle = PCHandler
-
-					workerLB.AddWorker(worker)
+					return
 				}
+				serviceType, ok := serviceTypeI.(string)
+				if !ok || serviceType == "" {
+					klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
+					PCHandler.Close()
+					return
+				}
+				// TODO if NA is in public network, need to auth connection
+				// TODO validate (serviceType, token) pair
+				klog.LogNormal("worker-new", fmt.Sprintf("worker is %v", worker))
+				worker.Group = serviceType
+				worker.Handle = PCHandler
+
+				workerLB.AddWorker(worker)
 			},
 		}
 	}); err != nil {
