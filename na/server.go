@@ -27,9 +27,19 @@ type WorkerConfig struct {
 	Timeout time.Duration
 }
 
-func GetWorkerHandler(workerLB *dlb.WorkerLB, serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
-	// choose worker
-	worker, ok := workerLB.PickUpWorkerRandom(serviceType)
+func GetWorkerHandler(workerLB *dlb.WorkerLB, serviceType string, workerId string) (*gopcp_rpc.PCPConnectionHandler, error) {
+	var (
+		worker *dlb.Worker
+		ok     bool
+	)
+
+	if workerId == "" {
+		// choose worker
+		worker, ok = workerLB.PickUpWorkerRandom(serviceType)
+	} else {
+		worker, ok = workerLB.PickUpWorkerById(serviceType, workerId)
+	}
+
 	if !ok {
 		// missing worker
 		return nil, errors.New("missing worker for service type " + serviceType)
@@ -47,8 +57,8 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 	// {type: {id: PcpConnectionHandler}}
 	var workerLB = dlb.GetWorkerLB()
 	var callQueueBox = cqbox.GetCallQueueBox()
-	var proxyMid = mids.GetProxyMid(func(serviceType string) (*gopcp_rpc.PCPConnectionHandler, error) {
-		return GetWorkerHandler(workerLB, serviceType)
+	var proxyMid = mids.GetProxyMid(func(serviceType string, workerId string) (*gopcp_rpc.PCPConnectionHandler, error) {
+		return GetWorkerHandler(workerLB, serviceType, workerId)
 	}, mids.DefaultGetCommand)
 
 	if server, err := gopcp_rpc.GetPCPRPCServer(port, func(streamServer *gopcp_stream.StreamServer) *gopcp.Sandbox {
@@ -56,6 +66,9 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// proxy pcp call
 			// (proxy, serviceType, exp, timeout)
 			"proxy": gopcp.ToLazySandboxFun(mids.LogMid("proxy", proxyMid.Proxy)),
+
+			// proxy pcp call by worker id
+			"proxyById": gopcp.ToLazySandboxFun(mids.LogMid("proxyById", proxyMid.ProxyById)),
 
 			// proxy pcp stream call
 			// (proxyStream, serviceType, exp, timeout)
