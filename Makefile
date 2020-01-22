@@ -1,17 +1,14 @@
-GOPATH := $(shell cd ../../../.. && pwd)
-export GOPATH
+GO111MODULE := on
+export GO111MODULE
 
-init-dep:
-	@dep init
+init:
+	@go mod init
 
-dep:
-	@dep ensure
+clean:
+	@go mod tidy
 
-status-dep:
-	@dep status
-
-update-dep:
-	@dep ensure -update
+update:
+	@go list -m -u all
 
 run:
 	@go run main.go
@@ -24,6 +21,6 @@ cover:
 	@cd ./na && go tool cover -html=coverage.out
 
 build:
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o stage/bin/na_service .
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o stage/bin/service .
 
 .PHONY: test
