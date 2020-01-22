@@ -8,7 +8,7 @@ clean:
 	@go mod tidy
 
 update:
-	@go list -m -u all
+	@go get -u
 
 run:
 	@go run main.go
