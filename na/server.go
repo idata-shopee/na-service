@@ -99,7 +99,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 					sid          string
 					serviceType  string
 				)
-				klog.LogNormal("connection-new", fmt.Sprintf("worker is %v", worker))
+				klog.LogNormal("connection-new", fmt.Sprintf("worker is %v, remote address is: %v", worker, PCHandler.ConnHandler.Conn.RemoteAddr()))
 
 				defer func() {
 					if err != nil {
