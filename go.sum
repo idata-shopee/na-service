@@ -16,6 +16,8 @@ github.com/lock-free/gopcp_rpc v0.0.0-20190920150227-7d0925f6c026 h1:mY3JSJmZyaW
 github.com/lock-free/gopcp_rpc v0.0.0-20190920150227-7d0925f6c026/go.mod h1:2BfNi14c1qP5Df7Pb8nKsU4QVJfTN6nvggkBro5YTIU=
 github.com/lock-free/gopcp_rpc v0.0.0-20200122090002-23245d514b9c h1:ejCUaxZqrrankj8kPbovjT9gmBQZOU1zrCDK2jlPF2E=
 github.com/lock-free/gopcp_rpc v0.0.0-20200122090002-23245d514b9c/go.mod h1:9gIYtOun127pni1i3Pj6YooXRVz/gbBuGUDQYYV+6HE=
+github.com/lock-free/gopcp_rpc v0.0.0-20200122095307-df151075d490 h1:xOYVnQCMkdZ7WsBqwbXV2Oqk3t1Dkmv1F/UJeOskyZY=
+github.com/lock-free/gopcp_rpc v0.0.0-20200122095307-df151075d490/go.mod h1:sJ32EiZx9zNPGtfOswp5qQ/oI9wEMz4yFMiQM8BRj7I=
 github.com/lock-free/gopcp_stream v0.0.0-20190920150102-eae38c487ee2 h1:Xe/hNV3O70UoqfCo2M4KHuxT8IMRCaQyBzJWbnpMF6I=
 github.com/lock-free/gopcp_stream v0.0.0-20190920150102-eae38c487ee2/go.mod h1:ozFeZLAmPWsBa3dB4y6PMgg+bb9/wbYfFhri42ylj/0=
 github.com/lock-free/gopool v0.0.0-20190611034900-329206275cf0 h1:uuCzjJn7tQjlJ1DznRIDePhrTS3QSHCNP7sULz9oESw=
@@ -25,6 +27,8 @@ github.com/lock-free/obrero v0.0.0-20191206073742-d0e773623aae/go.mod h1:4G6nlTf
 github.com/lock-free/obrero v0.0.0-20200122094017-7abdf8cba06f/go.mod h1:B8yvkjkae4EZVI07FwPscpHiA3fVQl5OVGKPlURo3q0=
 github.com/lock-free/obrero v0.0.0-20200122094902-cd13410872a1 h1:fQjFrshNrkE7VykFqHsD9mfdFvFctALl2fbxquaRTjo=
 github.com/lock-free/obrero v0.0.0-20200122094902-cd13410872a1/go.mod h1:GmSK7Zp3gNb5lUKcgrv1K3l8Vrvgy6yy3pkLX9WIYZs=
+github.com/lock-free/obrero v0.0.0-20200122095447-fd04a0d52d16 h1:WfWdCFzhT5Ajmk0tGR4PVUEZ/Llsol1lNaUZ46rQaWE=
+github.com/lock-free/obrero v0.0.0-20200122095447-fd04a0d52d16/go.mod h1:8PSHPDdZv7npRASHNFZe1+L/1Hs464Tye50rbGxv0xU=
 github.com/satori/go.uuid v1.2.0 h1:0uYX9dsZ2yD7q2RtLRtPSdGDWzjeM3TbMJP9utgA0ww=
 github.com/satori/go.uuid v1.2.0/go.mod h1:dA0hQrYB0VpLJoorglMZABFdXlWrHn1NEOzdhQKdks0=
 gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
