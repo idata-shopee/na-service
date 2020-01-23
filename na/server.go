@@ -85,7 +85,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// on close of connection
 			func(err error) {
 				// remove worker when connection closed
-				klog.LogNormal("connection-broken", fmt.Sprintf("worker is %v", worker))
+				klog.LogNormal("connection-broken", fmt.Sprintf("worker is %v, err is %v", worker, err))
 				workerLB.RemoveWorker(worker)
 			},
 
