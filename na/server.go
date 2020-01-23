@@ -103,7 +103,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 
 				defer func() {
 					if err != nil {
-						klog.LogNormal("connection-close", fmt.Sprintf("worker is %v", worker))
+						klog.LogNormal("connection-close", fmt.Sprintf("worker is %v, err is %v", worker, err))
 						PCHandler.Close()
 					}
 				}()
