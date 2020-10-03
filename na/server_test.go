@@ -34,6 +34,9 @@ func testBaseCall(t *testing.T, generateSandbox gopcp_rpc.GenerateSandbox, callR
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker2", nil
 			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
+			}),
 		})
 	}, obrero.WorkerStartConf{
 		PoolSize:            2,
@@ -62,6 +65,9 @@ func TestServerBase(t *testing.T) {
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
 			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
+			}),
 			"testFun": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "haha", nil
 			}),
@@ -75,6 +81,9 @@ func TestFunHandleSlice(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 			"countSlice": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				slice, ok := args[0].([]interface{})
@@ -94,6 +103,9 @@ func TestFunHandleMap(t *testing.T) {
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
 			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
+			}),
 		})
 	}, pcpClient.Call("prop", pcpClient.Call("Map", "a", 1, "b", 2), "a"), float64(1))
 }
@@ -104,6 +116,9 @@ func TestFunHandleSlice2(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 			"getThat": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				slice, ok := args[0].([]interface{})
@@ -126,6 +141,9 @@ func TestFunHandleSlice3(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 
 			"getThis": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
@@ -157,6 +175,9 @@ func TestServerStream(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 			"testStream": streamServer.StreamApi(func(
 				streamProducer gopcp_stream.StreamProducer,
@@ -194,6 +215,9 @@ func TestServerStream(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker2", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 		})
 	}, obrero.WorkerStartConf{
@@ -241,6 +265,10 @@ func TestServerStreamSlice(t *testing.T) {
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker", nil
 			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
+			}),
+
 			"testStream": streamServer.StreamApi(func(
 				streamProducer gopcp_stream.StreamProducer,
 				args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
@@ -285,6 +313,9 @@ func TestServerStreamSlice(t *testing.T) {
 		return gopcp.GetSandbox(map[string]*gopcp.BoxFunc{
 			"getServiceType": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
 				return "testWorker2", nil
+			}),
+			"getServiceStateId": gopcp.ToSandboxFun(func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+				return "testid", nil
 			}),
 		})
 	}, obrero.WorkerStartConf{
