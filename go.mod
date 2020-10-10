@@ -10,6 +10,6 @@ require (
 	github.com/lock-free/gopcp_rpc v0.0.0-20201003175801-77c2a1124a26
 	github.com/lock-free/gopcp_stream v0.0.0-20201003175511-d557307e2681
 	github.com/lock-free/gopool v0.0.0-20190611034900-329206275cf0
-	github.com/lock-free/obrero v0.0.0-20201003180228-44a7564b2218
+	github.com/lock-free/obrero v0.0.0-20201010160638-3a957050f35e
 	github.com/satori/go.uuid v1.2.0
 )

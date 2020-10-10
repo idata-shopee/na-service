@@ -77,6 +77,12 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			// (queue, key, list)
 			// eg: (queue, "abc", (+, a, b))
 			"queue": gopcp.ToLazySandboxFun(mids.LogMid("queue", callQueueBox.CallQueueBoxFn)),
+
+			"getActiveWorkerMap": gopcp.ToSandboxFun(
+				func(args []interface{}, attachment interface{}, pcpServer *gopcp.PcpServer) (interface{}, error) {
+					return workerLB.GetActiveWorkerMap(), nil
+				},
+			),
 		})
 	}, func() *gopcp_rpc.ConnectionEvent {
 		var worker dlb.Worker
@@ -86,7 +92,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 			func(err error) {
 				// remove worker when connection closed
 				klog.LogNormal("connection-broken", fmt.Sprintf("worker is %v, err is %v", worker, err))
-				workerLB.RemoveWorker(worker)
+				workerLB.RemoveWorker(&worker)
 			},
 
 			// new connection
@@ -120,6 +126,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				}
 
 				worker.Id = sid
+				worker.Info = PCHandler.ConnHandler.Conn.RemoteAddr().String()
 
 				// ask for service type
 				serviceTypeI, err = PCHandler.Call(PCHandler.PcpClient.Call(GET_SERVICE_TYPE), workerConfig.Timeout)
@@ -138,7 +145,7 @@ func StartNoneBlockingTcpServer(port int, workerConfig WorkerConfig) (*goaio.Tcp
 				worker.Group = serviceType
 				worker.Handle = PCHandler
 
-				workerLB.AddWorker(worker)
+				workerLB.AddWorker(&worker)
 			},
 		}
 	}); err != nil {
